@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ProcessedWaste;
 use App\Models\ProcessedWasteData;
+use App\Models\WasteRawMaterials;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ProcessedWasteController extends Controller
 {
@@ -37,8 +39,10 @@ class ProcessedWasteController extends Controller
             'id_processed_waste' => 'required|exists:processed_waste,id',
             'measured_qty'       => 'required|numeric',
             'created_at'         => 'required|date_format:Y-m-d H:i:s',
+            'raw_materials'      => 'required|json', // Harap dikirim sebagai string JSON dari Flutter
         ]);
 
+        DB::beginTransaction();
         try {
             $olahan = new ProcessedWasteData();
             $olahan->id_user = $request->user()->id; // Mengambil ID PIC yang sedang login
@@ -48,6 +52,17 @@ class ProcessedWasteController extends Controller
             $olahan->created_at = $request->created_at;
             $olahan->save();
 
+            $rawMaterials = json_decode($request->raw_materials, true);
+            foreach ($rawMaterials as $material) {
+                WasteRawMaterials::create([
+                    'id_processed_waste_data' => $olahan->id,
+                    'id_waste_sub_category' => $material['id_waste_sub_category'],
+                    'measured_qty' => $material['measured_qty'],
+                ]);
+            }
+
+            DB::commit();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Data hasil pengolahan sampah berhasil dicatat!',
@@ -55,6 +70,7 @@ class ProcessedWasteController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal menyimpan data olahan: ' . $e->getMessage()

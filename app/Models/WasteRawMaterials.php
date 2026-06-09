@@ -8,6 +8,8 @@ class WasteRawMaterials extends Model
 {
     protected $table = 'waste_raw_materials';
 
+    public $timestamps = false;
+
     protected $fillable = [
         'id_processed_waste_data',
         'id_waste_sub_category',

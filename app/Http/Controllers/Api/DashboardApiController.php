@@ -51,7 +51,7 @@ class DashboardApiController extends Controller
                 ->whereDate('created_at', $today)
                 ->count();
 
-            $photo = $picDetail && property_exists($picDetail, 'photo') ? $picDetail->photo : null;
+            $photo = $user->photo;
 
             return response()->json([
                 'success' => true,

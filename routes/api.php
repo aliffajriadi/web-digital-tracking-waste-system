@@ -27,6 +27,8 @@ Route::get('/source-locations', [SourceLocationController::class, 'index']);
 Route::get('/processed-waste', [ProcessedWasteController::class, 'index']);
 Route::get('/waste-out-methods', [WasteOutController::class, 'index']);
 Route::get('/waste-subcategories', [WasteOutController::class, 'getSubcategories']);
+Route::get('/waste-buyers', [WasteOutController::class, 'getBuyers']);
+Route::get('/waste-destinations', [WasteOutController::class, 'getDestinations']);
 Route::get('/waste-b3-notifications', [NotificationController::class, 'getWarnings']);
 
 
@@ -48,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard-data', [DashboardApiController::class, 'getDashboardData']);
     Route::get('/laporan-harian', [LaporanController::class, 'index']);
     Route::get('/laporan-harian/{id}', [LaporanController::class, 'show']);
+    Route::get('/waste-stocks', [LaporanController::class, 'stocks']);
 
     // Riwayat Gabungan (Personal PIC)
     Route::get('/riwayat-laporan', [ReportLogController::class, 'history']);

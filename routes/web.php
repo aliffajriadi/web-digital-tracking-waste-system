@@ -64,6 +64,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     // Monitoring
     Route::resource('waste-entry', WasteEntryController::class)->only(['index', 'show']);
     Route::resource('waste-out', WasteOutController::class)->only(['index', 'show', 'store']);
-    Route::resource('processed-waste-data', ProcessedWasteDataController::class)->only(['index', 'show']);
+    Route::resource('processed-waste-data', ProcessedWasteDataController::class)->only(['index', 'show', 'create', 'store']);
     Route::resource('report', ReportController::class)->only(['index', 'show']);
 });

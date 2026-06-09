@@ -108,4 +108,76 @@ class LaporanController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
+
+    public function stocks(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            
+            $subCategories = DB::table('waste_sub_category')
+                ->join('waste_category', 'waste_sub_category.id_waste_category', '=', 'waste_category.id')
+                ->join('unit_measured', 'waste_sub_category.id_unit_measured', '=', 'unit_measured.id')
+                ->select(
+                    'waste_sub_category.id',
+                    'waste_sub_category.name as sub_name',
+                    'waste_category.name as cat_name',
+                    'unit_measured.symbol as unit_symbol'
+                )
+                ->where('waste_sub_category.is_active', true)
+                ->get();
+                
+            $data = [];
+            foreach($subCategories as $sub) {
+                $masuk = DB::table('waste_entry')->where('id_waste_sub_category', $sub->id)->sum('measured_qty');
+                $keluar = DB::table('data_waste_out')
+                            ->where('is_processed_waste', false)
+                            ->where('id_waste_sub_category', $sub->id)
+                            ->sum('measured_qty');
+                $diolah = DB::table('waste_raw_materials')->where('id_waste_sub_category', $sub->id)->sum('measured_qty');
+                
+                $stok = $masuk - $keluar - $diolah;
+                
+                $data[] = [
+                    "id" => $sub->id,
+                    "kategori" => $sub->sub_name,
+                    "jenis_kategori" => $sub->cat_name,
+                    "jumlah" => floatval($stok) . " " . $sub->unit_symbol,
+                    "isBotol" => str_contains(strtolower($sub->sub_name), 'botol'),
+                    "waktu" => "-"
+                ];
+            }
+            
+            $processed = DB::table('processed_waste')
+                ->join('unit_measured', 'processed_waste.id_unit_measured', '=', 'unit_measured.id')
+                ->select(
+                    'processed_waste.id',
+                    'processed_waste.name as sub_name',
+                    'unit_measured.symbol as unit_symbol'
+                )->get();
+                
+            foreach($processed as $proc) {
+                $masuk = DB::table('processed_waste_data')->where('id_processed_waste', $proc->id)->sum('measured_qty');
+                $keluar = DB::table('data_waste_out')
+                            ->where('is_processed_waste', true)
+                            ->where('id_processed_waste', $proc->id)
+                            ->sum('measured_qty');
+                
+                $stok = $masuk - $keluar;
+                
+                $data[] = [
+                    "id" => "p_" . $proc->id,
+                    "kategori" => $proc->sub_name,
+                    "jenis_kategori" => "Hasil Olahan",
+                    "jumlah" => floatval($stok) . " " . $proc->unit_symbol,
+                    "isBotol" => false,
+                    "waktu" => "-"
+                ];
+            }
+            
+            return response()->json(['success' => true, 'data' => $data]);
+            
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 }

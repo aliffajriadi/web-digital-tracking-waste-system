@@ -25,9 +25,6 @@ class WasteOutController extends Controller
         }
     }
 
-    /**
-     * 2. Mengambil Daftar Subkategori Sampah (Untuk Dropdown di Flutter)
-     */
     public function getSubcategories()
     {
         try {
@@ -42,6 +39,26 @@ class WasteOutController extends Controller
                 'success' => false, 
                 'message' => 'Gagal mengambil subkategori sampah: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function getBuyers()
+    {
+        try {
+            $data = DB::table('data_collector_buyer')->get(); 
+            return response()->json(['success' => true, 'data' => $data], 200);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function getDestinations()
+    {
+        try {
+            $data = DB::table('waste_destinations')->get(); 
+            return response()->json(['success' => true, 'data' => $data], 200);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -87,12 +104,36 @@ class WasteOutController extends Controller
             $items = json_decode($request->items, true);
             
             foreach ($items as $item) {
+                // If id_sub_category starts with p_, it means it's processed waste
+                $isProcessed = false;
+                $idSub = null;
+                $idProcessed = null;
+                
+                $itemStrId = (string)$item['id_sub_category'];
+                if (str_starts_with($itemStrId, 'p_')) {
+                    $isProcessed = true;
+                    $idProcessed = str_replace('p_', '', $itemStrId);
+                } else {
+                    $idSub = $item['id_sub_category'];
+                }
+
                 DB::table('data_waste_out')->insert([
                     'id_waste_out_data'     => $wasteOutDataId,
-                    'is_processed_waste'    => false, 
-                    'id_waste_sub_category' => $item['id_sub_category'], 
-                    'id_processed_waste'    => null,  
+                    'is_processed_waste'    => $isProcessed, 
+                    'id_waste_sub_category' => $idSub, 
+                    'id_processed_waste'    => $idProcessed,  
                     'measured_qty'          => $item['quantity'], 
+                ]);
+            }
+
+            // Jika penjualan, simpan ke waste_selling_data
+            if ($request->has('id_buyer') && $request->id_buyer != null) {
+                DB::table('waste_selling_data')->insert([
+                    'id_waste_out_data' => $wasteOutDataId,
+                    'total_revenue'     => $request->total_revenue ?? 0,
+                    'id_buyer'          => $request->id_buyer,
+                    'created_at'        => now(),
+                    'updated_at'        => now(),
                 ]);
             }
 

@@ -73,6 +73,8 @@ class AuthApiController extends Controller
         $validator = Validator::make($request->all(), [
             'name'  => 'required|string|max:255',
             'email' => 'required|email',
+            'phone' => 'nullable|string|max:25',
+            'photo' => 'nullable|image|max:2048',
         ]);
 
         if ($validator->fails()) {
@@ -105,12 +107,22 @@ class AuthApiController extends Controller
         }
 
         // 5. UPDATE DATABASE NYA 
-        // A. Update nama lengkap di tabel pic_details
+        // A. Update nama lengkap & phone di tabel pic_details
         $picDetail->full_name = $request->name;
+        if ($request->has('phone')) {
+            $picDetail->phone = $request->phone;
+        }
         $picDetail->save();
 
         // B. Update email di tabel users
         $user->email = $request->email;
+
+        // C. Update photo jika ada
+        if ($request->hasFile('photo')) {
+            $photoPath = $request->file('photo')->store('user_photos', 'public');
+            $user->photo = $photoPath;
+        }
+
         $user->save();
 
         return response()->json([
@@ -120,7 +132,9 @@ class AuthApiController extends Controller
                 'id' => $user->id,
                 'email' => $user->email,
                 'full_name' => $picDetail->full_name,
+                'phone' => $picDetail->phone,
                 'nik' => $picDetail->nik,
+                'photo' => $user->photo,
             ]
         ], 200);
     }

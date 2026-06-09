@@ -6,9 +6,14 @@
 @section('content')
 <div class="max-w-7xl mx-auto space-y-5">
 
-    <div>
-        <h2 class="text-lg font-extrabold text-gray-800">Data Pengolahan Sampah</h2>
-        <p class="text-xs text-gray-400 mt-0.5">Rekaman proses pengolahan sampah yang dilakukan PIC.</p>
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-lg font-extrabold text-gray-800">Data Pengolahan Sampah</h2>
+            <p class="text-xs text-gray-400 mt-0.5">Rekaman proses pengolahan sampah yang dilakukan PIC.</p>
+        </div>
+        <a href="{{ route('admin.processed-waste-data.create') }}" class="h-9 px-4 bg-[#3DBFA6] text-white text-xs font-bold rounded-xl hover:bg-[#2aa08e] shadow-lg shadow-[#3DBFA6]/20 flex items-center gap-1.5">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Tambah
+        </a>
     </div>
 
     <!-- Filter -->

@@ -25,4 +25,9 @@ class ProcessedWasteData extends Model
     {
         return $this->belongsTo(User::class, 'id_user');
     }
+
+    public function rawMaterials()
+    {
+        return $this->hasMany(WasteRawMaterials::class, 'id_processed_waste_data');
+    }
 }

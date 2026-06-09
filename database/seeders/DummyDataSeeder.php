@@ -203,7 +203,19 @@ class DummyDataSeeder extends Seeder
         }
         $pwTypes = ProcessedWaste::all();
 
-        // 10. Waste Entries (Dummy Waste In)
+        // 10. Category Reports
+        $reportCategories = [
+            ['name' => 'Masalah Kendaraan'],
+            ['name' => 'Alat Berat Rusak'],
+            ['name' => 'Masalah Pengolahan'],
+            ['name' => 'Kendala Cuaca'],
+            ['name' => 'Lainnya'],
+        ];
+        foreach ($reportCategories as $rc) {
+            \App\Models\CategoryReport::firstOrCreate(['name' => $rc['name']], $rc);
+        }
+
+        // 11. Waste Entries (Dummy Waste In)
         $subCats = WasteSubCategory::all();
         $locs = SourceLocationWaste::all();
         for ($i = 0; $i < 20; $i++) {
@@ -235,6 +247,7 @@ class DummyDataSeeder extends Seeder
         for ($j = 0; $j < 15; $j++) {
             $currentMethod = $methods->random();
             $wo = WasteOutData::create([
+                'id_user' => $picUsers[array_rand($picUsers)]->id, // <--- PERBAIKAN: Ditambahkan id_user di sini
                 'id_waste_out_method' => $currentMethod->id,
                 'id_waste_destination' => $destinations->random()->id,
                 'notes' => 'Waste out dummy data ke-' . ($j + 1),
