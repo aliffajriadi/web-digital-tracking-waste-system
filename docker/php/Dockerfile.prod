@@ -1,0 +1,23 @@
+FROM php:8.3-fpm-alpine # Menggunakan alpine agar image lebih ringan
+
+# Install system dependencies & PHP extensions
+RUN apk add --no-cache libpng-dev libjpeg-turbo-dev freetype-dev zip libzip-dev unzip git \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo_mysql gd zip exif
+
+# Get latest Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+WORKDIR /var/www
+
+# Copy seluruh source code projek ke container
+COPY . /var/www
+
+# Run composer install untuk production (tanpa dev dependencies)
+RUN composer install --no-interaction --optimize-autoloader --no-dev
+
+# Set permission yang benar untuk Laravel
+RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+
+EXPOSE 9000
+CMD ["php-fpm"]

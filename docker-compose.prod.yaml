@@ -1,0 +1,40 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile.prod # Menggunakan dockerfile khusus prod
+    container_name: laravel_app_prod
+    restart: always
+    working_dir: /var/www
+    # Tanpa volume kodingan (.) karena sudah di-COPY di Dockerfile
+
+  nginx:
+    image: nginx:alpine
+    container_name: laravel_nginx_prod
+    restart: always
+    ports:
+      - "8080:80" # Di VPS, arahkan ke port yang kamu mau (misal 8080)
+    volumes:
+      # Hanya nge-mount config Nginx, kodingan statis dibaca lewat volume_share atau langsung dari app jika disinkronkan
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    volumes_from:
+      - app # Mengambil static files yang ada di dalam container app
+    depends_on:
+      - app
+
+  mysql:
+    image: mysql:8.0
+    container_name: laravel_mysql_prod
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    # Port 3306 TIDAK DI-EKSPOS ke luar demi keamanan VPS. 
+    # Hanya bisa diakses oleh internal network Docker (service 'app').
+    volumes:
+      - mysql_data_prod:/var/lib/mysql
+
+volumes:
+  mysql_data_prod:
