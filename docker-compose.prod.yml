@@ -6,6 +6,10 @@ services:
     container_name: laravel_app_prod
     restart: always
     working_dir: /var/www
+    volumes:
+      - storage:/var/www/storage
+      - bootstrap/cache:/var/www/bootstrap/cache
+      - ./.env:/var/www/.env
     # Tanpa volume kodingan (.) karena sudah di-COPY di Dockerfile
 
   nginx:
