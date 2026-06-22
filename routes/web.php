@@ -17,6 +17,8 @@ use App\Http\Controllers\Admin\WasteOutController;
 use App\Http\Controllers\Admin\WasteOutMethodController;
 use App\Http\Controllers\Admin\ProcessedWasteDataController;
 use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\PicReportController;
+use App\Http\Controllers\Admin\CategoryReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -66,4 +68,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::resource('waste-out', WasteOutController::class)->only(['index', 'show', 'store']);
     Route::resource('processed-waste-data', ProcessedWasteDataController::class)->only(['index', 'show', 'create', 'store']);
     Route::resource('report', ReportController::class)->only(['index', 'show']);
+    Route::get('report-export/excel', [ReportController::class, 'exportExcel'])->name('report.export.excel');
+    Route::get('report-export/pdf', [ReportController::class, 'exportPdf'])->name('report.export.pdf');
+    Route::resource('pic-report', PicReportController::class)->only(['index', 'show']);
+    Route::resource('category-report', CategoryReportController::class)->except(['create', 'show', 'edit']);
+
 });

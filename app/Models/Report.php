@@ -8,8 +8,6 @@ class Report extends Model
 {
     protected $table = 'report';
 
-    public $timestamps = false;
-
     protected $fillable = [
         'id_user',
         'id_category_report',
@@ -30,5 +28,10 @@ class Report extends Model
     public function categoryReport()
     {
         return $this->belongsTo(CategoryReport::class, 'id_category_report');
+    }
+
+    public function attachment()
+    {
+        return $this->hasOne(AttachmentReport::class, 'id_report');
     }
 }

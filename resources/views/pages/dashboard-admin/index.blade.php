@@ -24,7 +24,7 @@
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-5">
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
 
         <!-- Sampah Masuk -->
         <div class="stat-card bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
@@ -72,6 +72,18 @@
             </div>
             <p class="text-2xl font-extrabold text-gray-800">{{ number_format($stats['pic_count']) }}</p>
             <p class="text-xs text-gray-400 mt-1 font-medium">Pengguna PIC</p>
+        </div>
+
+        <!-- Total Pendapatan -->
+        <div class="stat-card bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+            <div class="flex items-start justify-between mb-4">
+                <div class="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center">
+                    <i data-lucide="wallet" class="w-5 h-5 text-emerald-500"></i>
+                </div>
+                <span class="text-[10px] font-bold text-emerald-400 bg-emerald-50 px-2 py-1 rounded-full uppercase tracking-wide">Total</span>
+            </div>
+            <p class="text-lg font-extrabold text-gray-800">Rp {{ number_format($stats['total_revenue'], 0, ',', '.') }}</p>
+            <p class="text-xs text-gray-400 mt-1 font-medium">Pendapatan</p>
         </div>
 
     </div>

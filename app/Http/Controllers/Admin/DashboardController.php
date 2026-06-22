@@ -8,6 +8,7 @@ use App\Models\WasteOutData;
 use App\Models\ProcessedWasteData;
 use App\Models\User;
 use App\Models\WasteSubCategory;
+use App\Models\WasteSellingData;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -20,6 +21,7 @@ class DashboardController extends Controller
             'waste_out_count'       => WasteOutData::count(),
             'processed_waste_count' => ProcessedWasteData::count(),
             'pic_count'             => User::where('role_id', 2)->count(),
+            'total_revenue'         => WasteSellingData::sum('total_revenue'),
         ];
 
         // Monthly waste entry (last 6 months)

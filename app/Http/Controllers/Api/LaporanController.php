@@ -44,7 +44,7 @@ class LaporanController extends Controller
                     // Sesuaikan dengan key yang dicari di Flutter: item['kategori']
                     "kategori" => $subName, 
                     "waktu" => $waktu,
-                    "jumlah" => $item->measured_qty . " " . $unit,
+                    "jumlah" => floatval($item->measured_qty) . " " . $unit,
                     "isBotol" => str_contains(strtolower($subName), 'botol'),
                 ];
             });
@@ -95,7 +95,7 @@ class LaporanController extends Controller
                 "kategori_gabung" => ($laporan->cat_name ?? 'Umum') . ", " . ($laporan->sub_name ?? 'Sampah'),
                 "waktu_tanggal" => $laporan->created_at ? Carbon::parse($laporan->created_at)->translatedFormat('l, d M Y') : "-",
                 "waktu_jam" => $laporan->created_at ? Carbon::parse($laporan->created_at)->format('H:i') . " WIB" : "-",
-                "jumlah" => $laporan->measured_qty ?? '0',
+                "jumlah" => floatval($laporan->measured_qty) ?? '0',
                 "satuan" => $laporan->unit_symbol ?? 'Kg',
                 "sumber" => $laporan->location_name ?? 'TIDAK DIKETAHUI',
                 "catatan" => $laporan->notes ?? 'Tidak ada catatan.',

@@ -142,7 +142,7 @@ class ReportLogController extends Controller
                 $kendala = $queryKendala->orderBy('id', 'desc')
                     ->get()
                     ->map(function ($item) {
-                        $createdAt = \Carbon\Carbon::now();
+                        $createdAt = $item->created_at ?? \Carbon\Carbon::now();
                         $namaKategori = $item->categoryReport ? $item->categoryReport->name : 'Umum';
 
                         return [

@@ -58,8 +58,16 @@
             <li>
                 <a href="{{ route('admin.report.index') }}"
                    class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.report.*') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="file-text" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Laporan</span>
+                    <i data-lucide="bar-chart-2" class="w-4 h-4 flex-shrink-0"></i>
+                    <span>Laporan Data Sampah</span>
+                </a>
+            </li>
+
+            <li>
+                <a href="{{ route('admin.pic-report.index') }}"
+                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.pic-report.*') ? 'sidebar-link-active' : '' }}">
+                    <i data-lucide="file-warning" class="w-4 h-4 flex-shrink-0"></i>
+                    <span>Laporan Kendala PIC</span>
                 </a>
             </li>
 
@@ -80,6 +88,14 @@
                    class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.waste-subcategory.*') ? 'sidebar-link-active' : '' }}">
                     <i data-lucide="tag" class="w-4 h-4 flex-shrink-0"></i>
                     <span>Sub-Kategori Sampah</span>
+                </a>
+            </li>
+
+            <li>
+                <a href="{{ route('admin.category-report.index') }}"
+                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.category-report.*') ? 'sidebar-link-active' : '' }}">
+                    <i data-lucide="folder-open" class="w-4 h-4 flex-shrink-0"></i>
+                    <span>Kategori Laporan</span>
                 </a>
             </li>
 

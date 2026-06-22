@@ -18,7 +18,7 @@ class WasteEntryController extends Controller
             'id_source_location_waste' => 'required',
             'measured_qty' => 'required|numeric',
             'created_at' => 'required',
-            'photo' => 'required|image|mimes:jpeg,png,jpg|max:2048', // Maksimal 2MB
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048', // Maksimal 2MB
         ]);
 
         // Gunakan Database Transaction agar jika salah satu simpan gagal, data tidak berantakan
