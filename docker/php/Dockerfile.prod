@@ -1,4 +1,4 @@
-FROM php:8.3-fpm-alpine # Menggunakan alpine agar image lebih ringan
+FROM php:8.3-fpm-alpine
 
 # Install system dependencies & PHP extensions
 RUN apk add --no-cache libpng-dev libjpeg-turbo-dev freetype-dev zip libzip-dev unzip git \
