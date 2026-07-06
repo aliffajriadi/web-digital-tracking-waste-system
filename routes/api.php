@@ -31,6 +31,11 @@ Route::get('/waste-buyers', [WasteOutController::class, 'getBuyers']);
 Route::get('/waste-destinations', [WasteOutController::class, 'getDestinations']);
 Route::get('/waste-b3-notifications', [NotificationController::class, 'getWarnings']);
 
+// Rute IoT (Hardware Device)
+Route::get('/iot/generate-code', [\App\Http\Controllers\Api\IotController::class, 'generateCode']);
+Route::get('/iot/check-status/{code}', [\App\Http\Controllers\Api\IotController::class, 'checkStatus']);
+Route::post('/iot/store-weight', [\App\Http\Controllers\Api\IotController::class, 'storeWeight']);
+
 
 
 /*2. ROUTE TERKUNCI (Wajib Login / Protected Routes via Sanctum)*/
@@ -43,6 +48,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Pengaturan Akun PIC
+    Route::post('/logout', [AuthApiController::class, 'logout']);
     Route::post('/update-profile', [AuthApiController::class, 'updateProfile']);
     Route::post('/change-password', [AuthApiController::class, 'changePassword']); 
 
@@ -57,6 +63,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Transaksi 1: Input Sampah Masuk
     Route::post('/waste-entry', [WasteEntryController::class, 'store']);
+
+    // Pairing & Unpairing IoT Timbangan
+    Route::post('/iot/pair', [\App\Http\Controllers\Api\IotController::class, 'pairCode']);
+    Route::post('/iot/unpair', [\App\Http\Controllers\Api\IotController::class, 'unpairCode']);
 
     // Transaksi 2: Input Sampah Olahan
     Route::post('/processed-waste-data', [ProcessedWasteController::class, 'store']);
