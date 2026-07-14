@@ -8,12 +8,13 @@ use Tests\TestCase;
 class ExampleTest extends TestCase
 {
     /**
-     * A basic test example.
+     * Root URL redirects to login page (behaviour aplikasi).
      */
     public function test_the_application_returns_a_successful_response(): void
     {
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        // Aplikasi redirect / ke login
+        $response->assertRedirect('/login');
     }
 }

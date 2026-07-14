@@ -62,10 +62,11 @@ class WasteOutController extends Controller
             DB::beginTransaction();
 
             $wasteOut = WasteOutData::create([
-                'id_waste_out_method' => $request->id_waste_out_method,
+                'id_user'              => auth()->id(),
+                'id_waste_out_method'  => $request->id_waste_out_method,
                 'id_waste_destination' => $request->id_waste_destination,
-                'notes' => $request->notes,
-                'created_at' => now(),
+                'notes'                => $request->notes,
+                'created_at'           => now(),
             ]);
 
             // Handle Image
