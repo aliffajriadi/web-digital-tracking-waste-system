@@ -6,6 +6,10 @@
     <meta name="description" content="WasteTracking - Sistem Digital Monitoring Rumah Sampah Polibatam">
     <title>@yield('title', 'WasteTracking Admin')</title>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('favicon.png') }}">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
