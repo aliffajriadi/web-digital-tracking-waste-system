@@ -15,6 +15,7 @@ class PicDetail extends Model
         'id_user',
         'full_name',
         'nik',
+        'phone',
     ];
 
     public function user()

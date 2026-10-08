@@ -2,6 +2,7 @@
 
 @section('title', 'Sub-Kategori Sampah | WasteTracking')
 @section('page-title', 'Sub-Kategori Sampah')
+@section('breadcrumb', 'Data Master')
 
 @section('content')
 <div class="max-w-7xl mx-auto space-y-5" x-data="{ openAdd: false, openEdit: false, editItem: null }">
@@ -37,7 +38,16 @@
                     </option>
                 @endforeach
             </select>
+            <select name="status" onchange="this.form.submit()"
+                class="h-9 px-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#3DBFA6]/20 focus:border-[#3DBFA6]">
+                <option value="">Semua status</option>
+                <option value="active" @selected(request('status') === 'active')>Aktif</option>
+                <option value="inactive" @selected(request('status') === 'inactive')>Nonaktif</option>
+            </select>
             <button type="submit" class="h-9 px-4 bg-gray-800 text-white text-xs font-bold rounded-xl">Filter</button>
+            @if(request()->hasAny(['search', 'category', 'status']))
+                <a href="{{ route('admin.waste-subcategory.index') }}" class="h-9 px-4 border border-gray-200 text-gray-500 text-xs font-bold rounded-xl hover:bg-gray-50 flex items-center">Reset</a>
+            @endif
         </form>
 
         <div class="overflow-x-auto">
@@ -111,7 +121,7 @@
                                     <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                                 </button>
                                 <form method="POST" action="{{ route('admin.waste-subcategory.destroy', $item) }}"
-                                    onsubmit="return confirm('Hapus sub-kategori ini?')">
+                                    data-confirm="Hapus sub-kategori ini? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus data?">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="w-8 h-8 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center">
                                         <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>

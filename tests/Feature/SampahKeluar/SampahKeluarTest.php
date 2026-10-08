@@ -60,6 +60,8 @@ class SampahKeluarTest extends TestCase
             ]
         ]);
 
+        $this->seedStock($pic, $subCategory, 50);
+
         // Act
         $response = $this->actingAs($pic, 'sanctum')->postJson('/api/waste-out', [
             'id_waste_out_method'  => $landfillMethod->id,
@@ -104,6 +106,8 @@ class SampahKeluarTest extends TestCase
                 'quantity'        => 15.0,
             ]
         ]);
+
+        $this->seedStock($pic, $subCategory, 50);
 
         // Act
         $response = $this->actingAs($pic, 'sanctum')->postJson('/api/waste-out', [
@@ -152,6 +156,8 @@ class SampahKeluarTest extends TestCase
         // Pastikan landfill method bukan id=1
         $this->assertNotEquals(1, $landfillMethod->id);
 
+        $this->seedStock($admin, $subCategory, 50);
+
         // Act: gunakan Landfill (id != 1) agar tidak perlu buyer
         $response = $this->actingAs($admin)->post(route('admin.waste-out.store'), [
             'id_waste_out_method'  => $landfillMethod->id,
@@ -193,7 +199,6 @@ class SampahKeluarTest extends TestCase
         $response->assertStatus(422)
                  ->assertJsonValidationErrors([
                      'id_waste_out_method',
-                     'created_at',
                      'items',
                  ]);
 

@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthApiController;
 use App\Http\Controllers\Api\DashboardApiController;
+use App\Http\Controllers\Api\IotController;
 use App\Http\Controllers\Api\LaporanController;
 use App\Http\Controllers\Api\ReportLogController;
 use App\Http\Controllers\Api\ReportSubmissionController;
@@ -18,39 +19,39 @@ use App\Http\Controllers\Api\NotificationController;
 /*1. ROUTE BEBAS (Bisa Diakses Tanpa Login / Public Routes)*/
 
 // Autentikasi Utama
-Route::post('/login', [AuthApiController::class, 'login']);
+Route::post('/login', [AuthApiController::class, 'login'])->middleware('throttle:10,1');
 
-// Mengambil Data Master / Dropdown untuk Form di Flutter
-Route::get('/categories', [CategoryController::class, 'index']);
-Route::get('/sub-categories/{category_id}', [SubCategoryController::class, 'getByCategoryId']);
-Route::get('/source-locations', [SourceLocationController::class, 'index']);
-Route::get('/processed-waste', [ProcessedWasteController::class, 'index']);
-Route::get('/waste-out-methods', [WasteOutController::class, 'index']);
-Route::get('/waste-subcategories', [WasteOutController::class, 'getSubcategories']);
-Route::get('/waste-buyers', [WasteOutController::class, 'getBuyers']);
-Route::get('/waste-destinations', [WasteOutController::class, 'getDestinations']);
-Route::get('/waste-b3-notifications', [NotificationController::class, 'getWarnings']);
-
-// Rute IoT (Hardware Device)
-Route::get('/iot/generate-code', [\App\Http\Controllers\Api\IotController::class, 'generateCode']);
-Route::get('/iot/check-status/{code}', [\App\Http\Controllers\Api\IotController::class, 'checkStatus']);
-Route::post('/iot/store-weight', [\App\Http\Controllers\Api\IotController::class, 'storeWeight']);
+// Rute IoT (Hardware Device) - perangkat tidak punya token, diautentikasi lewat kode pairing
+Route::middleware('throttle:120,1')->group(function () {
+    Route::get('/iot/generate-code', [IotController::class, 'generateCode']);
+    Route::get('/iot/check-status/{code}', [IotController::class, 'checkStatus']);
+    Route::post('/iot/store-weight', [IotController::class, 'storeWeight']);
+    // Daftar sub-kategori untuk menu pilihan di layar timbangan
+    Route::get('/waste-subcategories', [WasteOutController::class, 'getSubcategories']);
+});
 
 
+/*2. ROUTE TERKUNCI (Wajib Login sebagai PIC aktif / Protected Routes via Sanctum)*/
 
-/*2. ROUTE TERKUNCI (Wajib Login / Protected Routes via Sanctum)*/
-
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'pic.active'])->group(function () {
 
     // Cek Data User yang Sedang Login
-    Route::get('/user', function (Request $request) {
-        return $request->user();
-    });
+    Route::get('/user', [AuthApiController::class, 'me']);
 
     // Pengaturan Akun PIC
     Route::post('/logout', [AuthApiController::class, 'logout']);
     Route::post('/update-profile', [AuthApiController::class, 'updateProfile']);
-    Route::post('/change-password', [AuthApiController::class, 'changePassword']); 
+    Route::post('/change-password', [AuthApiController::class, 'changePassword']);
+
+    // Data Master / Dropdown untuk Form di Flutter
+    Route::get('/categories', [CategoryController::class, 'index']);
+    Route::get('/sub-categories/{category_id}', [SubCategoryController::class, 'getByCategoryId']);
+    Route::get('/source-locations', [SourceLocationController::class, 'index']);
+    Route::get('/processed-waste', [ProcessedWasteController::class, 'index']);
+    Route::get('/waste-out-methods', [WasteOutController::class, 'index']);
+    Route::get('/waste-buyers', [WasteOutController::class, 'getBuyers']);
+    Route::get('/waste-destinations', [WasteOutController::class, 'getDestinations']);
+    Route::get('/waste-b3-notifications', [NotificationController::class, 'getWarnings']);
 
     // Dashboard & Laporan Umum
     Route::get('/dashboard-data', [DashboardApiController::class, 'getDashboardData']);
@@ -65,18 +66,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/waste-entry', [WasteEntryController::class, 'store']);
 
     // Pairing & Unpairing IoT Timbangan
-    Route::post('/iot/pair', [\App\Http\Controllers\Api\IotController::class, 'pairCode']);
-    Route::post('/iot/unpair', [\App\Http\Controllers\Api\IotController::class, 'unpairCode']);
+    Route::get('/iot/session', [IotController::class, 'currentSession']);
+    Route::post('/iot/pair', [IotController::class, 'pairCode']);
+    Route::post('/iot/unpair', [IotController::class, 'unpairCode']);
 
     // Transaksi 2: Input Sampah Olahan
     Route::post('/processed-waste-data', [ProcessedWasteController::class, 'store']);
+    Route::get('/processed-waste-data/{id}', [ProcessedWasteController::class, 'show']);
 
     // Transaksi 3: Input Sampah Keluar
     Route::post('/waste-out', [WasteOutController::class, 'store']);
+    Route::get('/waste-out/{id}', [WasteOutController::class, 'show']);
 
     // Transaksi 4: Input Laporan Kendala Lapangan
     Route::post('/laporan-kendala', [ReportSubmissionController::class, 'storeKendala']);
-    Route::get('/laporan-kendala/{id}', [ReportSubmissionController::class, 'showKendala']); 
+    Route::get('/laporan-kendala/{id}', [ReportSubmissionController::class, 'showKendala']);
     Route::get('/kategori-kendala', [ReportSubmissionController::class, 'getCategories']);
 
 });

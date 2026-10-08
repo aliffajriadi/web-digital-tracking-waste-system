@@ -1,7 +1,8 @@
 @extends('layouts.app')
 
 @section('title', 'Sampah Masuk | WasteTracking')
-@section('page-title', 'Monitoring Sampah Masuk')
+@section('page-title', 'Sampah Masuk')
+@section('breadcrumb', 'Operasional')
 
 @section('content')
 <div class="max-w-7xl mx-auto space-y-5">
@@ -17,9 +18,16 @@
     <form method="GET" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-wrap items-center gap-3">
         <div class="relative flex-1 min-w-[180px]">
             <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari nama PIC atau jenis sampah..."
+            <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari PIC, jenis sampah, atau lokasi..."
                 class="w-full h-9 pl-9 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#3DBFA6]/20 focus:border-[#3DBFA6]">
         </div>
+        <select name="category" onchange="this.form.submit()"
+            class="h-9 px-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#3DBFA6]/20 focus:border-[#3DBFA6]">
+            <option value="">Semua kategori</option>
+            @foreach($categories as $cat)
+                <option value="{{ $cat->id }}" @selected(request('category') == $cat->id)>{{ $cat->name }}</option>
+            @endforeach
+        </select>
         <div class="flex items-center gap-2">
             <input type="date" name="date_from" value="{{ request('date_from') }}"
                 class="h-9 px-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#3DBFA6]/20 focus:border-[#3DBFA6]">
@@ -30,7 +38,7 @@
         <button type="submit" class="h-9 px-4 bg-gray-800 text-white text-xs font-bold rounded-xl hover:bg-gray-700">
             <i data-lucide="filter" class="w-3.5 h-3.5 inline mr-1"></i>Filter
         </button>
-        @if(request()->anyFilled(['search','date_from','date_to']))
+        @if(request()->anyFilled(['search','category','date_from','date_to']))
         <a href="{{ route('admin.waste-entry.index') }}" class="h-9 px-4 border border-gray-200 text-gray-500 text-xs font-bold rounded-xl hover:bg-gray-50 flex items-center">Reset</a>
         @endif
     </form>

@@ -62,6 +62,11 @@ class ProcessedWasteController extends Controller
 
     public function destroy(ProcessedWaste $processedWaste)
     {
+        $used = $processedWaste->processedWasteData()->exists()
+            || \Illuminate\Support\Facades\DB::table('data_waste_out')->where('id_processed_waste', $processedWaste->id)->exists();
+        if ($used) {
+            return back()->with('error', 'Jenis olahan tidak dapat dihapus karena sudah dipakai pada transaksi.');
+        }
         $processedWaste->delete();
         return back()->with('success', 'Jenis olahan berhasil dihapus.');
     }

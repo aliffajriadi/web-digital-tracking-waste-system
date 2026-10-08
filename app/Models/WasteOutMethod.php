@@ -13,7 +13,12 @@ class WasteOutMethod extends Model
     protected $fillable = [
         'name',
         'description',
+        'is_selling',
         'photo',
+    ];
+
+    protected $casts = [
+        'is_selling' => 'boolean',
     ];
 
     public function wasteOutData()

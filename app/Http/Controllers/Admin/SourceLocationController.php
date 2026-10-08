@@ -23,7 +23,7 @@ class SourceLocationController extends Controller
     {
         $validated = $request->validate([
             'name'    => ['required', 'string', 'max:100'],
-            'address' => ['nullable', 'string'],
+            'address' => ['nullable', 'string', 'max:500'],
             'photo'   => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
         ]);
 
@@ -39,7 +39,7 @@ class SourceLocationController extends Controller
     {
         $validated = $request->validate([
             'name'    => ['required', 'string', 'max:100'],
-            'address' => ['nullable', 'string'],
+            'address' => ['nullable', 'string', 'max:500'],
             'photo'   => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
         ]);
 
@@ -56,6 +56,12 @@ class SourceLocationController extends Controller
 
     public function destroy(SourceLocationWaste $sourceLocation)
     {
+        if ($sourceLocation->wasteEntries()->exists()) {
+            return back()->with('error', 'Sumber lokasi tidak dapat dihapus karena sudah dipakai pada data sampah masuk.');
+        }
+        if ($sourceLocation->photo) {
+            Storage::disk('public')->delete($sourceLocation->photo);
+        }
         $sourceLocation->delete();
         return back()->with('success', 'Sumber lokasi berhasil dihapus.');
     }

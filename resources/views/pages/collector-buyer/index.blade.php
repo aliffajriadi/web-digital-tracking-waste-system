@@ -2,6 +2,7 @@
 
 @section('title', 'Pengepul & Pembeli | WasteTracking')
 @section('page-title', 'Pengepul & Pembeli')
+@section('breadcrumb', 'Data Master')
 
 @section('content')
 <div class="max-w-7xl mx-auto space-y-5" x-data="{ openAdd: false, openEdit: false, editItem: null }">
@@ -73,7 +74,7 @@
                                 <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                             </button>
                             <form method="POST" action="{{ route('admin.collector-buyer.destroy', $item) }}"
-                                onsubmit="return confirm('Hapus data {{ $item->name }}?')">
+                                data-confirm="Hapus data {{ $item->name }}? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus data?">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="w-8 h-8 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center">
                                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>

@@ -3,262 +3,177 @@
 @section('title', 'Dashboard | WasteTracking')
 @section('page-title', 'Dashboard')
 
+@php use App\Services\StockService; @endphp
+
 @section('content')
-<div class="max-w-7xl mx-auto space-y-7">
+<div class="max-w-7xl mx-auto space-y-6">
 
-    <!-- Welcome Banner -->
-    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#1aa88e] via-[#17b89c] to-[#0f9e87] p-7 text-white shadow-lg">
-        <div class="relative z-10">
-            <p class="text-sm font-medium text-white/75 mb-1">Selamat datang kembali 👋</p>
-            <h2 class="text-2xl font-extrabold">
-                {{ auth()->user()->adminDetail->full_name ?? 'Administrator' }}
-            </h2>
-            <p class="text-sm text-white/70 mt-1">
-                {{ now()->locale('id')->isoFormat('dddd, D MMMM YYYY') }} — Sistem Monitoring Rumah Sampah Digital
-            </p>
+    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-600 via-brand-500 to-brand-400 p-6 md:p-7 text-white shadow-lg">
+        <div class="relative z-10 flex flex-col md:flex-row md:items-end md:justify-between gap-5">
+            <div>
+                <p class="text-sm text-white/80">{{ now()->translatedFormat('l, d F Y') }}</p>
+                <h2 class="text-2xl font-extrabold mt-1">Halo, {{ auth()->user()->adminDetail->full_name ?? 'Administrator' }}</h2>
+                <p class="text-sm text-white/80 mt-1">Hari ini tercatat {{ StockService::format($stats['in_today']) }} kg sampah masuk dari {{ $stats['in_today_count'] }} transaksi.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ route('admin.stock.index') }}" class="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-white text-brand-700 text-sm font-bold hover:bg-brand-50">
+                    <i data-lucide="warehouse" class="w-4 h-4"></i> Lihat Stok
+                </a>
+                <a href="{{ route('admin.report.index') }}" class="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-white/15 text-white text-sm font-bold hover:bg-white/25">
+                    <i data-lucide="file-bar-chart" class="w-4 h-4"></i> Laporan
+                </a>
+            </div>
         </div>
-        <!-- Decorative circles -->
-        <div class="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/10"></div>
-        <div class="absolute -right-4 -bottom-12 w-56 h-56 rounded-full bg-white/5"></div>
-        <div class="absolute right-32 -bottom-6 w-24 h-24 rounded-full bg-white/10"></div>
+        <div class="absolute -right-10 -top-10 w-44 h-44 rounded-full bg-white/10"></div>
+        <div class="absolute right-24 -bottom-16 w-56 h-56 rounded-full bg-white/5"></div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
-
-        <!-- Sampah Masuk -->
-        <div class="stat-card bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-            <div class="flex items-start justify-between mb-4">
-                <div class="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center">
-                    <i data-lucide="inbox" class="w-5 h-5 text-blue-500"></i>
-                </div>
-                <span class="text-[10px] font-bold text-blue-400 bg-blue-50 px-2 py-1 rounded-full uppercase tracking-wide">Total</span>
-            </div>
-            <p class="text-2xl font-extrabold text-gray-800">{{ number_format($stats['waste_entry_count']) }}</p>
-            <p class="text-xs text-gray-400 mt-1 font-medium">Sampah Masuk</p>
+    @if($b3Alerts->isNotEmpty() || $negativeStock->isNotEmpty())
+        <div class="grid gap-3 md:grid-cols-2">
+            @if($b3Alerts->isNotEmpty())
+                <a href="{{ route('admin.stock.index', ['status' => 'b3']) }}" class="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 hover:bg-red-100/60">
+                    <i data-lucide="flask-conical" class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5"></i>
+                    <div class="text-sm">
+                        <p class="font-semibold text-red-700">{{ $b3Alerts->count() }} limbah B3 mendekati/melewati batas simpan</p>
+                        <p class="text-xs text-red-600/80 mt-0.5">{{ $b3Alerts->take(3)->pluck('waste_name')->implode(', ') }}{{ $b3Alerts->count() > 3 ? ', …' : '' }}</p>
+                    </div>
+                </a>
+            @endif
+            @if($negativeStock->isNotEmpty())
+                <a href="{{ route('admin.stock.index', ['status' => 'negative']) }}" class="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 hover:bg-amber-100/60">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5"></i>
+                    <div class="text-sm">
+                        <p class="font-semibold text-amber-700">{{ $negativeStock->count() }} jenis sampah stoknya minus</p>
+                        <p class="text-xs text-amber-700/80 mt-0.5">Data lama sebelum validasi stok. Periksa transaksinya.</p>
+                    </div>
+                </a>
+            @endif
         </div>
+    @endif
 
-        <!-- Sampah Keluar -->
-        <div class="stat-card bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-            <div class="flex items-start justify-between mb-4">
-                <div class="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center">
-                    <i data-lucide="send" class="w-5 h-5 text-orange-500"></i>
-                </div>
-                <span class="text-[10px] font-bold text-orange-400 bg-orange-50 px-2 py-1 rounded-full uppercase tracking-wide">Total</span>
-            </div>
-            <p class="text-2xl font-extrabold text-gray-800">{{ number_format($stats['waste_out_count']) }}</p>
-            <p class="text-xs text-gray-400 mt-1 font-medium">Sampah Keluar</p>
-        </div>
-
-        <!-- Pengolahan -->
-        <div class="stat-card bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-            <div class="flex items-start justify-between mb-4">
-                <div class="w-11 h-11 rounded-xl bg-purple-50 flex items-center justify-center">
-                    <i data-lucide="cpu" class="w-5 h-5 text-purple-500"></i>
-                </div>
-                <span class="text-[10px] font-bold text-purple-400 bg-purple-50 px-2 py-1 rounded-full uppercase tracking-wide">Total</span>
-            </div>
-            <p class="text-2xl font-extrabold text-gray-800">{{ number_format($stats['processed_waste_count']) }}</p>
-            <p class="text-xs text-gray-400 mt-1 font-medium">Pengolahan</p>
-        </div>
-
-        <!-- PIC Aktif -->
-        <div class="stat-card bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-            <div class="flex items-start justify-between mb-4">
-                <div class="w-11 h-11 rounded-xl bg-teal-50 flex items-center justify-center">
-                    <i data-lucide="users" class="w-5 h-5 text-teal-500"></i>
-                </div>
-                <span class="text-[10px] font-bold text-teal-400 bg-teal-50 px-2 py-1 rounded-full uppercase tracking-wide">PIC</span>
-            </div>
-            <p class="text-2xl font-extrabold text-gray-800">{{ number_format($stats['pic_count']) }}</p>
-            <p class="text-xs text-gray-400 mt-1 font-medium">Pengguna PIC</p>
-        </div>
-
-        <!-- Total Pendapatan -->
-        <div class="stat-card bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-            <div class="flex items-start justify-between mb-4">
-                <div class="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center">
-                    <i data-lucide="wallet" class="w-5 h-5 text-emerald-500"></i>
-                </div>
-                <span class="text-[10px] font-bold text-emerald-400 bg-emerald-50 px-2 py-1 rounded-full uppercase tracking-wide">Total</span>
-            </div>
-            <p class="text-lg font-extrabold text-gray-800">Rp {{ number_format($stats['total_revenue'], 0, ',', '.') }}</p>
-            <p class="text-xs text-gray-400 mt-1 font-medium">Pendapatan</p>
-        </div>
-
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <x-stat-card label="Masuk hari ini" :value="StockService::format($stats['in_today']) . ' kg'" icon="arrow-down-to-line" tone="blue" :hint="'Bulan ini ' . StockService::format($stats['in_month']) . ' kg'" :href="route('admin.waste-entry.index', ['date_from' => today()->toDateString()])" />
+        <x-stat-card label="Keluar hari ini" :value="StockService::format($stats['out_today']) . ' kg'" icon="arrow-up-from-line" tone="orange" :hint="number_format($stats['waste_out_count']) . ' transaksi total'" :href="route('admin.waste-out.index')" />
+        <x-stat-card label="Diolah hari ini" :value="StockService::format($stats['processed_today']) . ' kg'" icon="recycle" tone="violet" :hint="number_format($stats['processed_waste_count']) . ' transaksi total'" :href="route('admin.processed-waste-data.index')" />
+        <x-stat-card label="Pendapatan bulan ini" :value="'Rp ' . number_format($stats['revenue_month'], 0, ',', '.')" icon="wallet" tone="emerald" :hint="'Total Rp ' . number_format($stats['total_revenue'], 0, ',', '.')" />
     </div>
 
-    <!-- Chart + Top Waste -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-        <!-- Chart Bulanan -->
-        <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <div class="flex items-center justify-between mb-6">
+        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+            <div class="flex items-center justify-between mb-5">
                 <div>
-                    <h3 class="text-sm font-bold text-gray-800">Tren Sampah Masuk</h3>
-                    <p class="text-xs text-gray-400 mt-0.5">6 bulan terakhir</p>
+                    <h3 class="text-sm font-bold text-slate-800">Sampah Masuk vs Keluar</h3>
+                    <p class="text-xs text-slate-400 mt-0.5">14 hari terakhir (kg)</p>
                 </div>
-                <span class="text-[10px] font-bold text-[#3DBFA6] bg-teal-50 px-3 py-1.5 rounded-full uppercase tracking-wide">Bulanan</span>
+                <div class="flex items-center gap-4 text-[11px] text-slate-500">
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-brand-500"></span>Masuk</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-orange-400"></span>Keluar</span>
+                </div>
             </div>
-            <div class="relative h-[250px] w-full">
-                <canvas id="wasteEntryChart"></canvas>
-            </div>
+            <div class="relative h-[260px]"><canvas id="trendChart" aria-label="Grafik sampah masuk dan keluar"></canvas></div>
         </div>
 
-        <!-- Top Sampah -->
-        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <div class="mb-5">
-                <h3 class="text-sm font-bold text-gray-800">Sampah Terbanyak</h3>
-                <p class="text-xs text-gray-400 mt-0.5">Berdasarkan kuantitas masuk</p>
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800">Stok Terbanyak</h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Siap diolah / dikeluarkan</p>
+                </div>
+                <a href="{{ route('admin.stock.index') }}" class="text-xs font-semibold text-brand-600 hover:underline">Semua</a>
             </div>
-            <div class="space-y-4">
-                @php
-                    $colors = ['bg-blue-500', 'bg-teal-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500'];
-                    $maxTotal = $topWaste->max('total') ?: 1;
-                @endphp
-                @forelse($topWaste as $i => $item)
-                    @php
-                        $pct = round(($item->total / $maxTotal) * 100);
-                    @endphp
+            @php $maxStock = max(1, $topStock->max('stock')); @endphp
+            <div class="space-y-3.5">
+                @forelse($topStock as $row)
                     <div>
-                        <div class="flex items-center justify-between mb-1.5">
-                            <span class="text-xs font-semibold text-gray-700 truncate max-w-[160px]">
-                                {{ $item->subCategory?->name ?? '-' }}
-                            </span>
-                            <span class="text-xs text-gray-400">{{ number_format($item->total, 2) }}</span>
+                        <div class="flex items-center justify-between text-xs mb-1.5">
+                            <span class="font-medium text-slate-700 truncate pr-2">{{ $row['name'] }}</span>
+                            <span class="font-bold text-slate-800 flex-shrink-0">{{ StockService::format($row['stock']) }} {{ $row['unit'] }}</span>
                         </div>
-                        <div class="w-full bg-gray-100 rounded-full h-2">
-                            <div class="{{ $colors[$i % 5] }} h-2 rounded-full transition-all" style="width: {{ $pct }}%"></div>
+                        <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full rounded-full {{ $row['type'] === 'processed' ? 'bg-violet-400' : 'bg-brand-400' }}" style="width: {{ max(3, $row['stock'] / $maxStock * 100) }}%"></div>
                         </div>
                     </div>
                 @empty
-                    <div class="text-center py-8">
-                        <i data-lucide="inbox" class="w-8 h-8 text-gray-200 mx-auto mb-2"></i>
-                        <p class="text-xs text-gray-400">Belum ada data</p>
-                    </div>
+                    <x-empty-state icon="warehouse" title="Gudang kosong" message="Belum ada stok sampah yang tersimpan." />
                 @endforelse
             </div>
         </div>
     </div>
 
-    <!-- Recent Entries -->
-    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div class="px-6 py-5 border-b border-gray-50 flex items-center justify-between">
-            <div>
-                <h3 class="text-sm font-bold text-gray-800">Aktivitas Terbaru</h3>
-                <p class="text-xs text-gray-400 mt-0.5">Sampah masuk paling baru</p>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-sm font-bold text-slate-800">Sampah Masuk Terbaru</h3>
+                <a href="{{ route('admin.waste-entry.index') }}" class="text-xs font-semibold text-brand-600 hover:underline">Lihat semua</a>
             </div>
-            <a href="{{ route('admin.waste-entry.index') }}"
-               class="text-[11px] font-bold text-[#3DBFA6] hover:text-[#2aa08e] flex items-center gap-1.5">
-                Lihat Semua <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
-            </a>
+            <div class="divide-y divide-slate-50">
+                @forelse($recentEntries as $entry)
+                    <a href="{{ route('admin.waste-entry.show', $entry) }}" class="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/70">
+                        <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="{{ $entry->notes === 'Timbangan Otomatis (IoT)' ? 'scale' : 'arrow-down-to-line' }}" class="w-4 h-4"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-semibold text-slate-800 truncate">{{ $entry->subCategory?->name ?? '-' }}</p>
+                            <p class="text-[11px] text-slate-400 truncate">{{ $entry->user?->picDetail?->full_name ?? 'Admin' }} · {{ $entry->created_at?->diffForHumans() }}</p>
+                        </div>
+                        <span class="text-sm font-bold text-slate-700 flex-shrink-0">{{ StockService::format((float) $entry->measured_qty) }} {{ $entry->subCategory?->unitMeasured?->symbol ?? 'kg' }}</span>
+                    </a>
+                @empty
+                    <x-empty-state icon="inbox" title="Belum ada sampah masuk" />
+                @endforelse
+            </div>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50/70">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">PIC</th>
-                        <th class="px-6 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Jenis Sampah</th>
-                        <th class="px-6 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Kuantitas</th>
-                        <th class="px-6 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Waktu</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                    @forelse($recentEntries as $entry)
-                    <tr class="hover:bg-gray-50/50 transition-colors">
-                        <td class="px-6 py-3.5">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-8 h-8 rounded-lg bg-teal-100 text-teal-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                                    {{ strtoupper(substr($entry->user?->picDetail?->full_name ?? 'U', 0, 2)) }}
-                                </div>
-                                <span class="text-xs font-medium text-gray-700">
-                                    {{ $entry->user?->picDetail?->full_name ?? $entry->user?->email ?? '-' }}
-                                </span>
-                            </div>
-                        </td>
-                        <td class="px-6 py-3.5">
-                            <div>
-                                <p class="text-xs font-medium text-gray-800">{{ $entry->subCategory?->name ?? '-' }}</p>
-                                <p class="text-[10px] text-gray-400">{{ $entry->subCategory?->category?->name ?? '' }}</p>
-                            </div>
-                        </td>
-                        <td class="px-6 py-3.5">
-                            <span class="text-xs font-semibold text-gray-700">{{ number_format($entry->measured_qty, 2) }}</span>
-                        </td>
-                        <td class="px-6 py-3.5">
-                            <span class="text-[11px] text-gray-400">{{ $entry->created_at?->diffForHumans() ?? '-' }}</span>
-                        </td>
-                    </tr>
+        <div class="space-y-5">
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+                <h3 class="text-sm font-bold text-slate-800 mb-4">Sampah Masuk Terbanyak <span class="font-normal text-slate-400">· bulan ini</span></h3>
+                <ol class="space-y-3">
+                    @forelse($topWaste as $i => $item)
+                        <li class="flex items-center gap-3">
+                            <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-500 text-[11px] font-bold flex items-center justify-center">{{ $i + 1 }}</span>
+                            <span class="flex-1 text-sm text-slate-700 truncate">{{ $item->subCategory?->name ?? '-' }}</span>
+                            <span class="text-xs font-bold text-slate-800">{{ StockService::format((float) $item->total) }} {{ $item->subCategory?->unitMeasured?->symbol ?? 'kg' }}</span>
+                        </li>
                     @empty
-                    <tr>
-                        <td colspan="4" class="px-6 py-12 text-center">
-                            <i data-lucide="inbox" class="w-10 h-10 text-gray-200 mx-auto mb-3"></i>
-                            <p class="text-sm text-gray-400">Belum ada data sampah masuk</p>
-                        </td>
-                    </tr>
+                        <li class="text-xs text-slate-400">Belum ada data bulan ini.</li>
                     @endforelse
-                </tbody>
-            </table>
+                </ol>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <x-stat-card label="PIC aktif" :value="$stats['pic_active'] . ' / ' . $stats['pic_count']" icon="users" tone="brand" :href="route('admin.users.index')" />
+                <x-stat-card label="Kendala 7 hari" :value="$stats['reports_week']" icon="message-square-warning" :tone="$stats['reports_week'] ? 'red' : 'slate'" :href="route('admin.pic-report.index')" />
+            </div>
         </div>
     </div>
-
 </div>
 @endsection
 
 @push('scripts')
 <script>
-    const monthlyData = @json($monthlyEntry);
-
-    const labels  = monthlyData.map(d => {
-        const [y, m] = d.month.split('-');
-        const date = new Date(y, m - 1);
-        return date.toLocaleString('id-ID', { month: 'short', year: '2-digit' });
-    });
-    const counts = monthlyData.map(d => parseFloat(d.total_qty) || 0);
-
-    const ctx = document.getElementById('wasteEntryChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Total Kuantitas',
-                data: counts,
-                backgroundColor: 'rgba(61, 191, 166, 0.12)',
-                borderColor: '#3DBFA6',
-                borderWidth: 2,
-                borderRadius: 8,
-                borderSkipped: false,
-                tension: 0.4,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: '#1e293b',
-                    titleColor: '#94a3b8',
-                    bodyColor: '#f8fafc',
-                    cornerRadius: 8,
-                    padding: 10,
-                }
+    document.addEventListener('DOMContentLoaded', () => {
+        const trend = @json($trend);
+        new Chart(document.getElementById('trendChart'), {
+            type: 'bar',
+            data: {
+                labels: trend.map(t => t.label),
+                datasets: [
+                    { label: 'Masuk', data: trend.map(t => t.in), backgroundColor: '#1fa88c', borderRadius: 6, maxBarThickness: 18 },
+                    { label: 'Keluar', data: trend.map(t => t.out), backgroundColor: '#fb923c', borderRadius: 6, maxBarThickness: 18 },
+                ],
             },
-            scales: {
-                x: {
-                    grid: { display: false },
-                    border: { display: false },
-                    ticks: { color: '#94a3b8', font: { size: 11 } }
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${formatNumber(c.raw)} kg` } },
                 },
-                y: {
-                    grid: { color: '#f1f5f9' },
-                    border: { display: false },
-                    ticks: { color: '#94a3b8', font: { size: 11 } }
-                }
-            }
-        }
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 11 } } },
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { color: '#94a3b8', font: { size: 11 } } },
+                },
+            },
+        });
     });
 </script>
 @endpush

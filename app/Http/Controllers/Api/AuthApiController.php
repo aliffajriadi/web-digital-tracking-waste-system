@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\EnsureActivePic;
+use App\Models\IotAuthSession;
 use App\Models\PicDetail;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthApiController extends Controller
 {
@@ -15,33 +19,30 @@ class AuthApiController extends Controller
     {
         // 1. Validasi inputan dari Flutter
         $request->validate([
-            'nik' => 'required',
-            'password' => 'required',
+            'nik' => 'required|string',
+            'password' => 'required|string',
         ]);
 
-        // 2. Cari NIK di tabel pic_details
-        $picDetail = PicDetail::where('nik', $request->nik)->first();
+        // 2. Cari NIK di tabel pic_detail, lalu cocokkan password.
+        // Pesan dibuat sama untuk NIK/password salah agar NIK tidak bisa ditebak.
+        $picDetail = PicDetail::where('nik', trim($request->nik))->first();
+        $user = $picDetail ? User::find($picDetail->id_user) : null;
 
-        // Jika NIK tidak ditemukan
-        if (!$picDetail) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Nomor Induk Karyawan (NIK) tidak terdaftar.',
-            ], 404);
-        }
-
-        // 3. Ambil data User dari relasi id_user yang ada di pic_details
-        $user = User::where('id', $picDetail->id_user)->first();
-
-        // 4. Cocokkan password-nya (Menggunakan Hash::check karena password di-bcrypt)
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Kata sandi yang Anda masukkan salah.',
+                'message' => 'NIK atau kata sandi salah.',
             ], 401);
         }
 
-        // 5. Cek apakah akun statusnya aktif
+        if ((int) $user->role_id !== EnsureActivePic::ROLE_PIC) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akun ini tidak memiliki akses ke aplikasi PIC.',
+            ], 403);
+        }
+
+        // 3. Cek apakah akun statusnya aktif
         if (!$user->is_active) {
             return response()->json([
                 'success' => false,
@@ -49,45 +50,48 @@ class AuthApiController extends Controller
             ], 403);
         }
 
-        // 6. BUAT TOKEN KEAMANAN (Sanctum)
-        // Token ini yang akan disimpan oleh Flutter untuk akses API selanjutnya
+        // 4. Buat token Sanctum yang akan disimpan aplikasi untuk request selanjutnya
         $token = $user->createToken('mobile_token')->plainTextToken;
 
-        // 7. Berikan response SUKSES dalam bentuk JSON ke Flutter
         return response()->json([
             'success' => true,
             'message' => 'Login berhasil',
             'token' => $token,
-            'user' => [
-                'id' => $user->id,
-                'email' => $user->email,
-                'full_name' => $picDetail->full_name,
-                'nik' => $picDetail->nik,
-            ]
+            'user' => $this->userPayload($user, $picDetail),
         ], 200);
+    }
+
+    public function me(Request $request)
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'success' => true,
+            'user' => $this->userPayload($user, $user->picDetail),
+        ]);
     }
 
     public function updateProfile(Request $request)
     {
-        // 1. Validasi input dari Flutter
+        $user = $request->user();
+
         $validator = Validator::make($request->all(), [
             'name'  => 'required|string|max:255',
-            'email' => 'required|email',
+            'email' => 'required|email|unique:users,email,' . $user->id,
             'phone' => 'nullable|string|max:25',
             'photo' => 'nullable|image|max:2048',
+        ], [
+            'email.unique' => 'Email sudah digunakan oleh akun lain.',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => $validator->errors()->first()
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
             ], 422);
         }
 
-        // 2. AMBIL USER LANGSUNG DARI SANCTUM 
-        $user = $request->user();
-
-        // 3. Ambil data PicDetail yang nempel dengan user ini
         $picDetail = PicDetail::where('id_user', $user->id)->first();
 
         if (!$picDetail) {
@@ -97,30 +101,19 @@ class AuthApiController extends Controller
             ], 404);
         }
 
-        // 4. Validasi tambahan: Pastikan email baru tidak duplikat dengan milik orang lain
-        $emailCheck = User::where('email', $request->email)->where('id', '!=', $user->id)->first();
-        if ($emailCheck) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Email sudah digunakan oleh akun lain.'
-            ], 422);
-        }
-
-        // 5. UPDATE DATABASE NYA 
-        // A. Update nama lengkap & phone di tabel pic_details
         $picDetail->full_name = $request->name;
         if ($request->has('phone')) {
             $picDetail->phone = $request->phone;
         }
         $picDetail->save();
 
-        // B. Update email di tabel users
         $user->email = $request->email;
 
-        // C. Update photo jika ada
         if ($request->hasFile('photo')) {
-            $photoPath = $request->file('photo')->store('user_photos', 'public');
-            $user->photo = $photoPath;
+            if ($user->photo) {
+                Storage::disk('public')->delete($user->photo);
+            }
+            $user->photo = $request->file('photo')->store('user_photos', 'public');
         }
 
         $user->save();
@@ -128,46 +121,46 @@ class AuthApiController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Profil berhasil diperbarui!',
-            'user'    => [
-                'id' => $user->id,
-                'email' => $user->email,
-                'full_name' => $picDetail->full_name,
-                'phone' => $picDetail->phone,
-                'nik' => $picDetail->nik,
-                'photo' => $user->photo,
-            ]
+            'user'    => $this->userPayload($user, $picDetail),
         ], 200);
     }
 
     public function changePassword(Request $request)
     {
-        // 1. Validasi input dari Flutter 
         $validator = Validator::make($request->all(), [
             'old_password' => 'required',
-            'new_password' => 'required|string|min:6', 
+            'new_password' => 'required|string|min:8|different:old_password',
+        ], [
+            'new_password.min' => 'Kata sandi baru minimal 8 karakter.',
+            'new_password.different' => 'Kata sandi baru harus berbeda dari kata sandi lama.',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => $validator->errors()->first()
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
             ], 422);
         }
 
-        // 2. Ambil user yang sedang login secara langsung
         $user = $request->user();
 
-        // 3. VALIDASI: Cocokkan kata sandi lama dengan yang ada di database
         if (!Hash::check($request->old_password, $user->password)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Kata sandi lama yang Anda masukkan salah.'
-            ], 401);
+                'message' => 'Kata sandi lama yang Anda masukkan salah.',
+                'errors' => ['old_password' => ['Kata sandi lama yang Anda masukkan salah.']],
+            ], 422);
         }
 
-        // 4. UPDATE PASSWORD BARU (Wajib di-hash pakai bcrypt)
         $user->password = Hash::make($request->new_password);
         $user->save();
+
+        // Keluarkan sesi di perangkat lain, pertahankan sesi yang sedang dipakai.
+        $current = $user->currentAccessToken();
+        $user->tokens()
+            ->when($current instanceof PersonalAccessToken, fn ($q) => $q->where('id', '!=', $current->id))
+            ->delete();
 
         return response()->json([
             'success' => true,
@@ -177,12 +170,34 @@ class AuthApiController extends Controller
 
     public function logout(Request $request)
     {
-        // Revoke the token that was used to authenticate the current request
-        $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+
+        // Putuskan timbangan IoT agar tidak lagi mencatat atas nama PIC yang keluar.
+        IotAuthSession::where('id_user', $user->id)
+            ->whereIn('status', ['pending', 'paired'])
+            ->delete();
+
+        $token = $user->currentAccessToken();
+        if ($token instanceof PersonalAccessToken) {
+            $token->delete();
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'Logout berhasil'
         ], 200);
+    }
+
+    private function userPayload(User $user, ?PicDetail $picDetail): array
+    {
+        return [
+            'id' => $user->id,
+            'email' => $user->email,
+            'full_name' => $picDetail?->full_name ?? $user->email,
+            'nik' => $picDetail?->nik ?? '',
+            'phone' => $picDetail?->phone,
+            'photo' => $user->photo,
+            'photo_url' => $user->photo ? asset('storage/' . $user->photo) : null,
+        ];
     }
 }

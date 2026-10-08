@@ -21,14 +21,7 @@ class IotControllerTest extends TestCase
 
     private function createUser(string $email = 'pic@test.com'): User
     {
-        $role = Role::create(['name' => 'PIC']);
-
-        return User::create([
-            'email'     => $email,
-            'password'  => bcrypt('password'),
-            'role_id'   => $role->id,
-            'is_active' => true,
-        ]);
+        return $this->createPic($email, 'password', (string) random_int(1000000000, 9999999999));
     }
 
     private function createWasteSubCategory(): WasteSubCategory
@@ -216,22 +209,58 @@ class IotControllerTest extends TestCase
     }
 
     /**
-     * Test: pair code gagal validasi jika id_user tidak ada di database
+     * Test: perangkat selalu dipasangkan ke akun yang login, id_user dari body diabaikan
+     * (mencegah PIC memasangkan timbangan atas nama orang lain)
      */
-    public function test_pair_code_validation_fails_with_nonexistent_user(): void
+    public function test_pair_code_always_uses_authenticated_user(): void
     {
-        $user = $this->createUser();
+        $user  = $this->createUser();
+        $other = $this->createUser('other@test.com');
 
         IotAuthSession::create(['code' => 'AB12', 'status' => 'pending']);
 
         $response = $this->actingAs($user, 'sanctum')
                          ->postJson('/api/iot/pair', [
                              'code'    => 'AB12',
-                             'id_user' => 99999, // tidak ada
+                             'id_user' => $other->id,
                          ]);
 
-        $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['id_user']);
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('iot_auth_sessions', [
+            'code'    => 'AB12',
+            'id_user' => $user->id,
+        ]);
+    }
+
+    /**
+     * Test: PIC tidak bisa memutus perangkat yang terhubung ke akun lain
+     */
+    public function test_unpair_code_forbidden_for_other_users_device(): void
+    {
+        $owner = $this->createUser();
+        $other = $this->createUser('other@test.com');
+
+        IotAuthSession::create(['code' => 'AB12', 'status' => 'paired', 'id_user' => $owner->id]);
+
+        $this->actingAs($other, 'sanctum')
+             ->postJson('/api/iot/unpair', ['code' => 'AB12'])
+             ->assertStatus(403);
+
+        $this->assertDatabaseHas('iot_auth_sessions', ['code' => 'AB12', 'status' => 'paired']);
+    }
+
+    /**
+     * Test: aplikasi bisa memulihkan sesi timbangan yang sedang terhubung
+     */
+    public function test_current_session_returns_paired_code(): void
+    {
+        $user = $this->createUser();
+        IotAuthSession::create(['code' => 'AB12', 'status' => 'paired', 'id_user' => $user->id]);
+
+        $this->actingAs($user, 'sanctum')
+             ->getJson('/api/iot/session')
+             ->assertOk()
+             ->assertJson(['paired' => true, 'code' => 'AB12']);
     }
 
     // =========================================================================

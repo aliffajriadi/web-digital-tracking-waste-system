@@ -2,6 +2,7 @@
 
 @section('title', 'Kategori Laporan Kendala | WasteTracking')
 @section('page-title', 'Kategori Laporan')
+@section('breadcrumb', 'Data Master')
 
 @section('content')
 <div class="max-w-7xl mx-auto space-y-5" x-data="{

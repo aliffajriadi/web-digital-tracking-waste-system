@@ -77,52 +77,53 @@ class StokTest extends TestCase
     }
 
     // =========================================================================
-    // TC-021 (Stok) - Stok keluar lebih besar dari yang masuk:
-    //                 aplikasi tidak memvalidasi stok (tidak ada cek stok)
-    //                 Data tetap tersimpan (behavior aplikasi saat ini)
+    // TC-021 (Stok) - Sampah keluar melebihi stok ditolak oleh API
     // =========================================================================
-    public function test_stok_out_can_exceed_stok_in_because_no_stock_validation(): void
+    public function test_stok_out_exceeding_stock_is_rejected(): void
     {
         // Arrange: stok masuk hanya 10 kg
         $setup = $this->setupMasterData();
-        $admin = $this->createAdmin();
         $pic   = $this->createPic('pic@test.com');
-
-        WasteEntry::create([
-            'id_user'               => $pic->id,
-            'id_waste_sub_category' => $setup['subCategory']->id,
-            'measured_qty'          => 10.0,
-        ]);
-
-        $method      = $setup['method'];
-        $destination = $setup['destination'];
+        $this->seedStock($pic, $setup['subCategory'], 10.0);
 
         // Act: coba keluarkan 100 kg (melebihi stok)
-        $wasteOut = WasteOutData::create([
-            'id_user'              => $pic->id,
-            'id_waste_out_method'  => $method->id,
-            'id_waste_destination' => $destination->id,
-            'notes'                => 'Keluar melebihi stok',
+        $response = $this->actingAs($pic, 'sanctum')->postJson('/api/waste-out', [
+            'id_waste_out_method'  => $setup['method']->id,
+            'id_waste_destination' => $setup['destination']->id,
+            'items' => json_encode([['id_sub_category' => $setup['subCategory']->id, 'quantity' => 100]]),
         ]);
 
-        DataWasteOut::create([
-            'id_waste_out_data'     => $wasteOut->id,
-            'is_processed_waste'    => false,
-            'id_waste_sub_category' => $setup['subCategory']->id,
-            'measured_qty'          => 100.0, // melebihi stok
-        ]);
+        // Assert: ditolak dan tidak ada data yang tersimpan
+        $response->assertStatus(422)->assertJsonValidationErrors(['items']);
+        $this->assertDatabaseCount('waste_out_data', 0);
+        $this->assertDatabaseCount('data_waste_out', 0);
+    }
 
-        // Assert: aplikasi tidak memblokir (tidak ada validasi stok di DB layer)
-        $this->assertDatabaseHas('data_waste_out', [
-            'id_waste_out_data' => $wasteOut->id,
-            'measured_qty'      => 100.0,
-        ]);
+    // =========================================================================
+    // TC-021b (Stok) - Endpoint stok menghitung masuk - keluar - diolah
+    // =========================================================================
+    public function test_stock_endpoint_calculates_remaining_stock(): void
+    {
+        $setup = $this->setupMasterData();
+        $pic   = $this->createPic();
+        $this->seedStock($pic, $setup['subCategory'], 30);
 
-        // Selisih stok bisa negatif (10 - 100 = -90)
-        $totalIn  = WasteEntry::where('id_waste_sub_category', $setup['subCategory']->id)->sum('measured_qty');
-        $totalOut = DataWasteOut::where('id_waste_sub_category', $setup['subCategory']->id)->sum('measured_qty');
-        $this->assertEquals(10.0, $totalIn);
-        $this->assertEquals(100.0, $totalOut);
-        $this->assertLessThan(0, $totalIn - $totalOut);
+        $this->actingAs($pic, 'sanctum')->postJson('/api/waste-out', [
+            'id_waste_out_method' => $setup['method']->id,
+            'items' => json_encode([['id_sub_category' => $setup['subCategory']->id, 'quantity' => 5]]),
+        ])->assertCreated();
+
+        $this->actingAs($pic, 'sanctum')->postJson('/api/processed-waste-data', [
+            'id_processed_waste' => $setup['processedWaste']->id,
+            'measured_qty'       => 4,
+            'raw_materials'      => json_encode([['id_waste_sub_category' => $setup['subCategory']->id, 'measured_qty' => 10]]),
+        ])->assertCreated();
+
+        $data = collect($this->actingAs($pic, 'sanctum')->getJson('/api/waste-stocks')->assertOk()->json('data'));
+
+        $raw = $data->firstWhere('id', $setup['subCategory']->id);
+        $this->assertEquals(15.0, $raw['stock']); // 30 - 5 - 10
+        $processed = $data->firstWhere('id', 'p_' . $setup['processedWaste']->id);
+        $this->assertEquals(4.0, $processed['stock']);
     }
 }

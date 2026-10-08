@@ -14,10 +14,13 @@ class WasteSubCategoryController extends Controller
 {
     public function index(Request $request)
     {
-        $query = WasteSubCategory::with(['category', 'b3Detail', 'unitMeasured'])->latest();
+        $query = WasteSubCategory::with(['category', 'b3Detail', 'unitMeasured'])->orderBy('id_waste_category')->orderBy('name');
 
         if ($request->filled('search')) {
             $query->where('name', 'like', "%{$request->search}%");
+        }
+        if ($request->filled('status')) {
+            $query->where('is_active', $request->status === 'active');
         }
         if ($request->filled('category')) {
             $query->where('id_waste_category', $request->category);
@@ -82,6 +85,17 @@ class WasteSubCategoryController extends Controller
 
     public function destroy(WasteSubCategory $wasteSubcategory)
     {
+        $used = $wasteSubcategory->wasteEntries()->exists()
+            || \Illuminate\Support\Facades\DB::table('data_waste_out')->where('id_waste_sub_category', $wasteSubcategory->id)->exists()
+            || \Illuminate\Support\Facades\DB::table('waste_raw_materials')->where('id_waste_sub_category', $wasteSubcategory->id)->exists();
+
+        if ($used) {
+            return back()->with('error', 'Sub-kategori sudah dipakai pada transaksi sehingga tidak dapat dihapus. Ubah statusnya menjadi Nonaktif agar tidak muncul lagi di aplikasi.');
+        }
+
+        if ($wasteSubcategory->photo) {
+            Storage::disk('public')->delete($wasteSubcategory->photo);
+        }
         $wasteSubcategory->delete();
         return back()->with('success', 'Sub-kategori berhasil dihapus.');
     }

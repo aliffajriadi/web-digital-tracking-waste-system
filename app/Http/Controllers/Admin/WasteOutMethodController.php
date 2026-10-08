@@ -29,6 +29,8 @@ class WasteOutMethodController extends Controller
             'photo'       => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
         ]);
 
+        $validated['is_selling'] = $request->boolean('is_selling');
+
         if ($request->hasFile('photo')) {
             $validated['photo'] = $request->file('photo')->store('methods', 'public');
         }
@@ -44,6 +46,8 @@ class WasteOutMethodController extends Controller
             'description' => ['nullable', 'string'],
             'photo'       => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
         ]);
+
+        $validated['is_selling'] = $request->boolean('is_selling');
 
         if ($request->hasFile('photo')) {
             // Delete old photo if exists

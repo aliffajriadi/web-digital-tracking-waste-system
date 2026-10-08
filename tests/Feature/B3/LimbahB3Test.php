@@ -3,6 +3,7 @@
 namespace Tests\Feature\B3;
 
 use App\Models\WasteB3Detail;
+use App\Models\WasteEntry;
 use App\Models\WasteCategory;
 use App\Models\WasteSubCategory;
 use App\Models\UnitMeasured;
@@ -225,30 +226,73 @@ class LimbahB3Test extends TestCase
     // =========================================================================
     public function test_tc028_get_warnings_returns_b3_data_when_exists(): void
     {
-        // Arrange: B3 dengan masa simpan sangat pendek (1 hari) → pasti expired → sisa ≤ 10
-        WasteB3Detail::create([
+        // Arrange: limbah B3 masa simpan 1 hari yang masuk 3 hari lalu dan masih di gudang
+        $setup = $this->setupMasterData();
+        $pic   = $this->createPic();
+        $b3 = WasteB3Detail::create([
             'waste_code'           => 'D001',
             'description'          => 'Limbah Kritis',
             'retention_period_day' => 1,
             'danger_level'         => 5,
         ]);
+        $setup['subCategory']->update(['id_waste_b3_detail' => $b3->id]);
+        WasteEntry::create([
+            'id_user'               => $pic->id,
+            'id_waste_sub_category' => $setup['subCategory']->id,
+            'measured_qty'          => 5,
+            'created_at'            => now()->subDays(3),
+        ]);
 
         // Act
-        $response = $this->getJson('/api/waste-b3-notifications');
+        $response = $this->actingAs($pic, 'sanctum')->getJson('/api/waste-b3-notifications');
 
-        // Assert: endpoint bisa diakses, berhasil, dan mengembalikan array data
+        // Assert
         $response->assertStatus(200)
                  ->assertJson(['success' => true])
-                 ->assertJsonStructure([
-                     'success',
-                     'message',
-                     'data',
-                 ]);
+                 ->assertJsonStructure(['success', 'message', 'data']);
 
-        // Ada setidaknya 1 warning karena masa simpan 1 hari (sisa ≤ 10)
         $data = $response->json('data');
-        $this->assertIsArray($data);
-        $this->assertGreaterThanOrEqual(1, count($data));
+        $this->assertCount(1, $data);
+        $this->assertEquals('D001', $data[0]['waste_code']);
+        $this->assertEquals('expired', $data[0]['status']);
+        $this->assertLessThan(0, $data[0]['sisa_hari']);
+    }
+
+    // =========================================================================
+    // TC-028b - B3 yang stoknya sudah habis (sudah dikirim keluar) tidak diberi peringatan
+    // =========================================================================
+    public function test_tc028b_no_warning_when_b3_stock_already_empty(): void
+    {
+        $setup = $this->setupMasterData();
+        $pic   = $this->createPic();
+        $b3 = WasteB3Detail::create([
+            'waste_code'           => 'D002',
+            'description'          => 'Oli bekas',
+            'retention_period_day' => 1,
+            'danger_level'         => 4,
+        ]);
+        $setup['subCategory']->update(['id_waste_b3_detail' => $b3->id]);
+        WasteEntry::create([
+            'id_user'               => $pic->id,
+            'id_waste_sub_category' => $setup['subCategory']->id,
+            'measured_qty'          => 5,
+            'created_at'            => now()->subDays(3),
+        ]);
+        $out = \App\Models\WasteOutData::create([
+            'id_user'             => $pic->id,
+            'id_waste_out_method' => $setup['method']->id,
+        ]);
+        \App\Models\DataWasteOut::create([
+            'id_waste_out_data'     => $out->id,
+            'is_processed_waste'    => false,
+            'id_waste_sub_category' => $setup['subCategory']->id,
+            'measured_qty'          => 5,
+        ]);
+
+        $this->actingAs($pic, 'sanctum')
+             ->getJson('/api/waste-b3-notifications')
+             ->assertOk()
+             ->assertJson(['data' => []]);
     }
 
     // =========================================================================
@@ -257,16 +301,22 @@ class LimbahB3Test extends TestCase
     // =========================================================================
     public function test_tc029_get_warnings_returns_empty_when_no_b3_data(): void
     {
-        // Arrange: tidak ada data B3 sama sekali
+        $pic = $this->createPic();
 
-        // Act
-        $response = $this->getJson('/api/waste-b3-notifications');
+        $response = $this->actingAs($pic, 'sanctum')->getJson('/api/waste-b3-notifications');
 
-        // Assert: sukses tapi data kosong
         $response->assertStatus(200)
                  ->assertJson([
                      'success' => true,
                      'data'    => [],
                  ]);
+    }
+
+    // =========================================================================
+    // TC-029b - Endpoint peringatan wajib login
+    // =========================================================================
+    public function test_tc029b_get_warnings_requires_authentication(): void
+    {
+        $this->getJson('/api/waste-b3-notifications')->assertStatus(401);
     }
 }

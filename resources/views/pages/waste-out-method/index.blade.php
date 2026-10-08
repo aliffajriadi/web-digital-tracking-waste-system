@@ -2,6 +2,7 @@
 
 @section('title', 'Metode Keluar Sampah | WasteTracking')
 @section('page-title', 'Metode Keluar Sampah')
+@section('breadcrumb', 'Data Master')
 
 @section('content')
 <div class="max-w-7xl mx-auto space-y-5"
@@ -76,7 +77,12 @@
                             <div class="w-9 h-9 rounded-xl bg-{{ $color }}-50 flex items-center justify-center flex-shrink-0">
                                 <i data-lucide="{{ $icon }}" class="w-4 h-4 text-{{ $color }}-500"></i>
                             </div>
-                            <span class="text-xs font-semibold text-gray-800">{{ $method->name }}</span>
+                            <div>
+                                <span class="text-xs font-semibold text-gray-800">{{ $method->name }}</span>
+                                @if($method->is_selling)
+                                    <span class="ml-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">Penjualan</span>
+                                @endif
+                            </div>
                         </div>
                     </td>
                     <td class="px-6 py-4 text-xs text-gray-500 max-w-xs truncate">{{ $method->description ?? '-' }}</td>
@@ -88,12 +94,12 @@
                     <td class="px-6 py-4">
                         <div class="flex items-center justify-end gap-1.5">
                             <button
-                                @click="openEdit = true; editItem = {{ json_encode(['id' => $method->id, 'name' => $method->name, 'description' => $method->description]) }}"
+                                @click="openEdit = true; editItem = {{ json_encode(['id' => $method->id, 'name' => $method->name, 'description' => $method->description, 'is_selling' => (bool) $method->is_selling]) }}"
                                 class="w-8 h-8 rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-100 flex items-center justify-center transition-colors">
                                 <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                             </button>
                             <form method="POST" action="{{ route('admin.waste-out-method.destroy', $method) }}"
-                                onsubmit="return confirm('Hapus metode \'{{ $method->name }}\'?')">
+                                data-confirm="Hapus metode '{{ $method->name }}'? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus data?">
                                 @csrf @method('DELETE')
                                 <button type="submit"
                                     class="w-8 h-8 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-colors">
@@ -153,6 +159,13 @@
                         placeholder="Penjelasan singkat tentang metode ini..."
                         class="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3DBFA6]/20 focus:border-[#3DBFA6] resize-none">{{ old('description') }}</textarea>
                 </div>
+                <label class="flex items-start gap-3 p-3.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer">
+                    <input type="checkbox" name="is_selling" value="1" class="mt-0.5 w-4 h-4 accent-emerald-600" {{ old('is_selling') ? 'checked' : '' }}>
+                    <span>
+                        <span class="block text-sm font-semibold text-slate-700">Metode penjualan</span>
+                        <span class="block text-xs text-slate-500">Jika dicentang, PIC wajib memilih pembeli dan mengisi total pendapatan.</span>
+                    </span>
+                </label>
                 <div>
                     <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Icon / Foto (Input Gambar)</label>
                     <input type="file" name="photo" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-600 hover:file:bg-teal-100 cursor-pointer">
@@ -206,6 +219,13 @@
                         <textarea name="description" rows="2" x-text="editItem.description"
                             class="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3DBFA6]/20 focus:border-[#3DBFA6] resize-none"></textarea>
                     </div>
+                    <label class="flex items-start gap-3 p-3.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer">
+                        <input type="checkbox" name="is_selling" value="1" class="mt-0.5 w-4 h-4 accent-emerald-600" :checked="editItem.is_selling">
+                        <span>
+                            <span class="block text-sm font-semibold text-slate-700">Metode penjualan</span>
+                            <span class="block text-xs text-slate-500">PIC wajib memilih pembeli dan mengisi total pendapatan.</span>
+                        </span>
+                    </label>
                     <div>
                         <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Ganti Icon / Foto</label>
                         <input type="file" name="photo" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 cursor-pointer">

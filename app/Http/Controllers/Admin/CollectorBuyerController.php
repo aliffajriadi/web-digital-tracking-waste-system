@@ -49,6 +49,9 @@ class CollectorBuyerController extends Controller
 
     public function destroy(DataCollectorBuyer $collectorBuyer)
     {
+        if (\Illuminate\Support\Facades\DB::table('waste_selling_data')->where('id_buyer', $collectorBuyer->id)->exists()) {
+            return back()->with('error', 'Pengepul/pembeli tidak dapat dihapus karena sudah memiliki riwayat transaksi penjualan.');
+        }
         $collectorBuyer->delete();
         return back()->with('success', 'Data pengepul/pembeli berhasil dihapus.');
     }

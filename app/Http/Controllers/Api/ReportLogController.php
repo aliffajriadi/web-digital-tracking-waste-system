@@ -3,190 +3,184 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use App\Models\WasteEntry;
-use App\Models\WasteOutData;
 use App\Models\ProcessedWasteData;
 use App\Models\Report;
+use App\Models\WasteEntry;
+use App\Models\WasteOutData;
+use App\Services\StockService;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class ReportLogController extends Controller
 {
+    private const LIMIT_PER_TYPE = 300;
+
+    /**
+     * Riwayat gabungan milik PIC yang sedang login.
+     * type: 1=Masuk, 2=Keluar, 3=Olahan, 4=Kendala (kosong = semua)
+     */
     public function history(Request $request)
     {
-        try {
-            $userId = $request->user()->id;
-            $search = $request->query('search');
-            $type = $request->query('type'); 
-            // 1=Masuk, 2=Keluar, 3=Olahan, 4=Kendala
+        $request->validate([
+            'search' => 'nullable|string|max:100',
+            'type' => 'nullable|in:1,2,3,4',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date',
+        ]);
 
-            $allLogs = collect();
+        $userId = $request->user()->id;
+        $search = trim((string) $request->query('search', ''));
+        $type = $request->query('type');
+        $from = $request->filled('date_from') ? Carbon::parse($request->date_from)->startOfDay() : null;
+        $to = $request->filled('date_to') ? Carbon::parse($request->date_to)->endOfDay() : null;
 
-            /*1. INPUT MASUK*/
-            if (empty($type) || $type == 1) {
-                $queryMasuk = \App\Models\WasteEntry::where('id_user', $userId)
-                    ->with(['subCategory'])
-                    ->latest();
-
-                if (!empty($search)) {
-                    $queryMasuk->whereHas('subCategory', function ($q) use ($search) {
-                        $q->where('name', 'LIKE', "%{$search}%");
-                    });
-                }
-
-                $masuk = $queryMasuk->orderBy('id', 'desc')
-                    ->get()
-                    ->map(function ($item) {
-                        return [
-                            'id' => $item->id,
-                            'type_log' => 'input_masuk',
-                            'title' => 'Input Masuk: ' . ($item->subCategory->name ?? 'Sampah'),
-                            'time' => $item->created_at ? $item->created_at->format('H:i') . ' WIB' : '-',
-                            'amount' => number_format($item->measured_qty, 0, ',', '.') . ' Kg',
-                            'timestamp' => $item->created_at ? $item->created_at->timestamp : 0,
-                            'date_group' => $item->created_at
-                                ? $item->created_at->translatedFormat('l, d M Y')
-                                : 'Tanpa Tanggal',
-                        ];
-                    });
-
-                $allLogs = $allLogs->merge($masuk);
+        $dateScope = function ($query) use ($from, $to) {
+            if ($from) {
+                $query->where('created_at', '>=', $from);
             }
-
-            /*2. INPUT KELUAR*/
-            if (empty($type) || $type == 2) {
-                $queryKeluar = \App\Models\WasteOutData::where('id_user', $userId)
-                    ->with([
-                        'dataWasteOut.wasteSubCategory',
-                        'dataWasteOut.processedWaste'
-                    ])
-                    ->latest();
-
-                if (!empty($search)) {
-                    $queryKeluar->whereHas('dataWasteOut.wasteSubCategory', function ($q) use ($search) {
-                        $q->where('name', 'LIKE', "%{$search}%");
-                    })->orWhereHas('dataWasteOut.processedWaste', function ($q) use ($search) {
-                        $q->where('name', 'LIKE', "%{$search}%");
-                    });
-                }
-
-                $keluar = $queryKeluar->orderBy('id', 'desc')
-                    ->get()
-                    ->flatMap(function ($item) {
-                        return $item->dataWasteOut->map(function ($detail) use ($item) {
-                            $namaSampah = $detail->is_processed_waste == 1
-                                ? ($detail->processedWaste->name ?? 'Produk Olahan')
-                                : ($detail->wasteSubCategory->name ?? 'Sampah Mentah');
-
-                            return [
-                                'id' => $item->id,
-                                'type_log' => 'input_keluar',
-                                'title' => 'Input Keluar: ' . $namaSampah,
-                                'time' => $item->created_at ? $item->created_at->format('H:i') . ' WIB' : '-',
-                                'amount' => number_format($detail->measured_qty, 0, ',', '.') . ' Kg',
-                                'timestamp' => $item->created_at ? $item->created_at->timestamp : 0,
-                                'date_group' => $item->created_at
-                                    ? $item->created_at->translatedFormat('l, d M Y')
-                                    : 'Tanpa Tanggal',
-                            ];
-                        });
-                    });
-
-                $allLogs = $allLogs->merge($keluar);
+            if ($to) {
+                $query->where('created_at', '<=', $to);
             }
+        };
 
-            /*3. HASIL OLAHAN*/ 
-            if (empty($type) || $type == 3) {
-                $queryOlahan = \App\Models\ProcessedWasteData::where('id_user', $userId)
-                    ->with(['processedWaste'])
-                    ->latest();
+        $allLogs = collect();
 
-                if (!empty($search)) {
-                    $queryOlahan->whereHas('processedWaste', function ($q) use ($search) {
-                        $q->where('name', 'LIKE', "%{$search}%");
-                    });
-                }
+        /* 1. INPUT MASUK */
+        if (empty($type) || $type == 1) {
+            $masuk = WasteEntry::where('id_user', $userId)
+                ->with(['subCategory.unitMeasured'])
+                ->when($search !== '', fn ($q) => $q->whereHas('subCategory', fn ($s) => $s->where('name', 'like', "%{$search}%")))
+                ->tap($dateScope)
+                ->orderByDesc('created_at')
+                ->limit(self::LIMIT_PER_TYPE)
+                ->get()
+                ->map(fn ($item) => $this->row(
+                    $item->id,
+                    'input_masuk',
+                    'Masuk: ' . ($item->subCategory->name ?? 'Sampah'),
+                    $this->qty($item->measured_qty, $item->subCategory?->unitMeasured?->symbol),
+                    $item->created_at,
+                ));
 
-                $olahan = $queryOlahan->orderBy('id', 'desc')
-                    ->get()
-                    ->map(function ($item) {
-                        return [
-                            'id' => $item->id,
-                            'type_log' => 'olahan',
-                            'title' => 'Olahan: ' . ($item->processedWaste->name ?? 'Produk Jadi'),
-                            'time' => $item->created_at ? $item->created_at->format('H:i') . ' WIB' : '-',
-                            'amount' => number_format($item->measured_qty, 0, ',', '.') . ' Kg',
-                            'timestamp' => $item->created_at ? $item->created_at->timestamp : 0,
-                            'date_group' => $item->created_at
-                                ? $item->created_at->translatedFormat('l, d M Y')
-                                : 'Tanpa Tanggal',
-                        ];
-                    });
-
-                $allLogs = $allLogs->merge($olahan);
-            }
-
-            /*4. LAPORAN KENDALA*/  
-            if (empty($type) || $type == 4) {
-                $queryKendala = \App\Models\Report::where('id_user', $userId)
-                    ->with(['categoryReport']);
-              
-
-                if (!empty($search)) {
-                    $queryKendala->where(function ($q) use ($search) {
-                        $q->where('title', 'LIKE', "%{$search}%")
-                          ->orWhere('content', 'LIKE', "%{$search}%");
-                    });
-                }
-
-                $kendala = $queryKendala->orderBy('id', 'desc')
-                    ->get()
-                    ->map(function ($item) {
-                        $createdAt = $item->created_at ?? \Carbon\Carbon::now();
-                        $namaKategori = $item->categoryReport ? $item->categoryReport->name : 'Umum';
-
-                        return [
-                            'id' => $item->id,
-                            'type_log' => 'kendala',
-                            'title' => 'Kendala: ' . $namaKategori,
-                            'time' => $createdAt ? $createdAt->format('H:i') . ' WIB' : '-',
-                            'amount' => $item->title ?? '1 Berkas', 
-                            'timestamp' => $createdAt->timestamp,
-                            'date_group' => $createdAt->translatedFormat('l, d M Y'),
-                        ];
-                    });
-
-                $allLogs = $allLogs->merge($kendala);
-            }
-
-            /*SORTING & GROUPING DATA*/ 
-            // 1. Urutkan semua data dari yang paling baru berdasarkan timestamp asli
-            $sortedLogs = $allLogs->sortByDesc('timestamp')->values();
-
-            // 2. Kelompokkan berdasarkan date_group yang konsisten
-            $groupedData = $sortedLogs->groupBy('date_group')->toArray();
-
-            /*FILTER MENU*/
-            $categories = [
-                ['id' => '', 'name' => 'Semua'],
-                ['id' => '1', 'name' => 'Input Masuk'],
-                ['id' => '2', 'name' => 'Input Keluar'],
-                ['id' => '3', 'name' => 'Hasil Olahan'],
-                ['id' => '4', 'name' => 'Laporan Kendala'],
-            ];
-            
-            // 3. Return response dengan aman (jika kosong berikan objek {}, jika ada pastikan strukturnya Map/Object)
-            return response()->json([
-                'success' => true,
-                'categories' => $categories,
-                'data' => empty($groupedData) ? new \stdClass() : (object)$groupedData
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 500);
+            $allLogs = $allLogs->merge($masuk);
         }
+
+        /* 2. INPUT KELUAR (satu baris per transaksi) */
+        if (empty($type) || $type == 2) {
+            $keluar = WasteOutData::where('id_user', $userId)
+                ->with(['wasteOutMethod', 'dataWasteOut.wasteSubCategory.unitMeasured', 'dataWasteOut.processedWaste.unitMeasured'])
+                ->when($search !== '', function ($q) use ($search) {
+                    // Dikelompokkan agar filter id_user tidak ikut terlewati oleh OR
+                    $q->where(function ($w) use ($search) {
+                        $w->whereHas('dataWasteOut.wasteSubCategory', fn ($s) => $s->where('name', 'like', "%{$search}%"))
+                          ->orWhereHas('dataWasteOut.processedWaste', fn ($s) => $s->where('name', 'like', "%{$search}%"))
+                          ->orWhereHas('wasteOutMethod', fn ($s) => $s->where('name', 'like', "%{$search}%"));
+                    });
+                })
+                ->tap($dateScope)
+                ->orderByDesc('created_at')
+                ->limit(self::LIMIT_PER_TYPE)
+                ->get()
+                ->map(function ($item) {
+                    $details = $item->dataWasteOut;
+                    $names = $details->map(fn ($d) => $d->is_processed_waste
+                        ? ($d->processedWaste->name ?? 'Produk Olahan')
+                        : ($d->wasteSubCategory->name ?? 'Sampah'))->unique()->values();
+                    $units = $details->map(fn ($d) => $d->is_processed_waste
+                        ? ($d->processedWaste?->unitMeasured?->symbol ?? 'kg')
+                        : ($d->wasteSubCategory?->unitMeasured?->symbol ?? 'kg'))->unique();
+
+                    $title = 'Keluar: ' . $names->take(2)->implode(', ') . ($names->count() > 2 ? ' +' . ($names->count() - 2) : '');
+                    $amount = $units->count() === 1
+                        ? $this->qty($details->sum('measured_qty'), $units->first())
+                        : $details->count() . ' item';
+
+                    return $this->row($item->id, 'input_keluar', $title, $amount, $item->created_at, $item->wasteOutMethod?->name);
+                });
+
+            $allLogs = $allLogs->merge($keluar);
+        }
+
+        /* 3. HASIL OLAHAN */
+        if (empty($type) || $type == 3) {
+            $olahan = ProcessedWasteData::where('id_user', $userId)
+                ->with(['processedWaste.unitMeasured'])
+                ->when($search !== '', fn ($q) => $q->whereHas('processedWaste', fn ($s) => $s->where('name', 'like', "%{$search}%")))
+                ->tap($dateScope)
+                ->orderByDesc('created_at')
+                ->limit(self::LIMIT_PER_TYPE)
+                ->get()
+                ->map(fn ($item) => $this->row(
+                    $item->id,
+                    'olahan',
+                    'Olahan: ' . ($item->processedWaste->name ?? 'Produk Jadi'),
+                    $this->qty($item->measured_qty, $item->processedWaste?->unitMeasured?->symbol),
+                    $item->created_at,
+                ));
+
+            $allLogs = $allLogs->merge($olahan);
+        }
+
+        /* 4. LAPORAN KENDALA */
+        if (empty($type) || $type == 4) {
+            $kendala = Report::where('id_user', $userId)
+                ->with(['categoryReport'])
+                ->when($search !== '', function ($q) use ($search) {
+                    $q->where(function ($w) use ($search) {
+                        $w->where('title', 'like', "%{$search}%")
+                          ->orWhere('content', 'like', "%{$search}%");
+                    });
+                })
+                ->tap($dateScope)
+                ->orderByDesc('id')
+                ->limit(self::LIMIT_PER_TYPE)
+                ->get()
+                ->map(fn ($item) => $this->row(
+                    $item->id,
+                    'kendala',
+                    'Kendala: ' . ($item->categoryReport->name ?? 'Umum'),
+                    $item->title ?? 'Laporan',
+                    $item->created_at ?? Carbon::now(),
+                ));
+
+            $allLogs = $allLogs->merge($kendala);
+        }
+
+        $sortedLogs = $allLogs->sortByDesc('timestamp')->values();
+        $groupedData = $sortedLogs->groupBy('date_group')->toArray();
+
+        $categories = [
+            ['id' => '', 'name' => 'Semua'],
+            ['id' => '1', 'name' => 'Masuk'],
+            ['id' => '2', 'name' => 'Keluar'],
+            ['id' => '3', 'name' => 'Olahan'],
+            ['id' => '4', 'name' => 'Kendala'],
+        ];
+
+        return response()->json([
+            'success' => true,
+            'categories' => $categories,
+            'total' => $sortedLogs->count(),
+            'data' => empty($groupedData) ? new \stdClass() : (object) $groupedData,
+        ]);
+    }
+
+    private function row(int $id, string $type, string $title, string $amount, ?Carbon $createdAt, ?string $subtitle = null): array
+    {
+        return [
+            'id' => $id,
+            'type_log' => $type,
+            'title' => $title,
+            'subtitle' => $subtitle,
+            'time' => $createdAt ? $createdAt->format('H:i') . ' WIB' : '-',
+            'amount' => $amount,
+            'timestamp' => $createdAt ? $createdAt->timestamp : 0,
+            'date_group' => $createdAt ? $createdAt->translatedFormat('l, d M Y') : 'Tanpa Tanggal',
+        ];
+    }
+
+    private function qty($qty, ?string $unit): string
+    {
+        return StockService::format((float) $qty) . ' ' . ($unit ?: 'kg');
     }
 }

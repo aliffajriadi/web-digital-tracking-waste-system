@@ -4,28 +4,31 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\WasteSubCategory;
-use Illuminate\Http\Request;
+use App\Services\StockService;
 
 class SubCategoryController extends Controller
 {
+    public function __construct(private StockService $stock)
+    {
+    }
+
     public function getByCategoryId($categoryId)
     {
-        try {
-            // Mengambil sub-kategori yang id_waste_category-nya cocok
-            $subCategories = WasteSubCategory::where('id_waste_category', $categoryId)
-                ->where('is_active', 1) // Hanya ambil yang aktif
-                ->get();
+        $subCategories = WasteSubCategory::with(['unitMeasured', 'b3Detail'])
+            ->where('id_waste_category', $categoryId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
 
-            return response()->json([
-                'success' => true,
-                'data' => $subCategories
-            ], 200);
+        $stocks = $this->stock->rawStocks($subCategories->pluck('id')->all());
+        $subCategories->each(function ($sub) use ($stocks) {
+            $sub->setAttribute('stock', (float) ($stocks[$sub->id] ?? 0));
+            $sub->setAttribute('unit', $sub->unitMeasured?->symbol ?? 'kg');
+        });
 
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal mengambil data sub-kategori: ' . $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'data' => $subCategories,
+        ], 200);
     }
 }

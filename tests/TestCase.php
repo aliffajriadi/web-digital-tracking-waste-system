@@ -24,6 +24,7 @@ abstract class TestCase extends BaseTestCase
     protected function createAdmin(string $email = 'admin@test.com', string $password = 'password'): User
     {
         $role = Role::firstOrCreate(['name' => 'admin']);
+        Role::firstOrCreate(['name' => 'pic']);
 
         $user = User::create([
             'email'     => $email,
@@ -43,15 +44,11 @@ abstract class TestCase extends BaseTestCase
     // =========================================================================
     // HELPER: Buat PIC User (role_id = 2)
     // =========================================================================
-    protected function createPic(string $email = 'pic@test.com', string $password = 'password'): User
+    protected function createPic(string $email = 'pic@test.com', string $password = 'password', string $nik = '1234567890123456'): User
     {
+        // Urutan seeder produksi: admin = 1, pic = 2
+        Role::firstOrCreate(['name' => 'admin']);
         $role = Role::firstOrCreate(['name' => 'pic']);
-        // Pastikan role_id PIC = 2
-        if ($role->id !== 2) {
-            // Create admin role dulu jika belum ada agar PIC mendapat id=2
-            Role::firstOrCreate(['name' => 'admin']);
-            $role = Role::firstOrCreate(['name' => 'pic']);
-        }
 
         $user = User::create([
             'email'     => $email,
@@ -63,7 +60,7 @@ abstract class TestCase extends BaseTestCase
         PicDetail::create([
             'id_user'   => $user->id,
             'full_name' => 'PIC Test',
-            'nik'       => '1234567890123456',
+            'nik'       => $nik,
         ]);
 
         return $user;
@@ -112,5 +109,17 @@ abstract class TestCase extends BaseTestCase
         ]);
 
         return compact('unit', 'category', 'subCategory', 'location', 'method', 'destination', 'processedWaste');
+    }
+
+    // =========================================================================
+    // HELPER: Isi stok sampah mentah lewat transaksi sampah masuk
+    // =========================================================================
+    protected function seedStock(User $pic, WasteSubCategory $subCategory, float $qty): void
+    {
+        \App\Models\WasteEntry::create([
+            'id_user'               => $pic->id,
+            'id_waste_sub_category' => $subCategory->id,
+            'measured_qty'          => $qty,
+        ]);
     }
 }

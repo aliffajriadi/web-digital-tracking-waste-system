@@ -1,183 +1,106 @@
-<aside
-    class="fixed top-0 left-0 z-40 w-72 h-screen bg-gradient-to-b from-[#1fa88c] to-[#158f77] text-white border-r border-teal-400/20 shadow-2xl"
-    :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'">
+@php
+    $menu = [
+        ['type' => 'link', 'route' => 'admin.dashboard', 'match' => 'admin.dashboard', 'icon' => 'layout-dashboard', 'label' => 'Dashboard'],
 
-    <div class="h-20 flex items-center px-5 border-b border-white/15">
-        <div class="flex items-center gap-3">
+        ['type' => 'heading', 'label' => 'Operasional'],
+        ['type' => 'link', 'route' => 'admin.stock.index', 'match' => 'admin.stock.*', 'icon' => 'warehouse', 'label' => 'Stok Gudang', 'badge' => $b3AlertCount ?? 0],
+        ['type' => 'link', 'route' => 'admin.waste-entry.index', 'match' => 'admin.waste-entry.*', 'icon' => 'arrow-down-to-line', 'label' => 'Sampah Masuk'],
+        ['type' => 'link', 'route' => 'admin.processed-waste-data.index', 'match' => 'admin.processed-waste-data.*', 'icon' => 'recycle', 'label' => 'Pengolahan'],
+        ['type' => 'link', 'route' => 'admin.waste-out.index', 'match' => 'admin.waste-out.*', 'icon' => 'arrow-up-from-line', 'label' => 'Sampah Keluar'],
+
+        ['type' => 'heading', 'label' => 'Laporan'],
+        ['type' => 'link', 'route' => 'admin.report.index', 'match' => 'admin.report.*', 'icon' => 'bar-chart-3', 'label' => 'Laporan Data Sampah'],
+        ['type' => 'link', 'route' => 'admin.pic-report.index', 'match' => 'admin.pic-report.*', 'icon' => 'message-square-warning', 'label' => 'Laporan Kendala PIC'],
+
+        ['type' => 'heading', 'label' => 'Data Master'],
+        ['type' => 'group', 'label' => 'Jenis Sampah', 'icon' => 'layers', 'items' => [
+            ['route' => 'admin.waste-category.index', 'match' => 'admin.waste-category.*', 'label' => 'Kategori'],
+            ['route' => 'admin.waste-subcategory.index', 'match' => 'admin.waste-subcategory.*', 'label' => 'Sub-Kategori'],
+            ['route' => 'admin.waste-b3.index', 'match' => 'admin.waste-b3.*', 'label' => 'Limbah B3'],
+            ['route' => 'admin.processed-waste.index', 'match' => 'admin.processed-waste.*', 'label' => 'Jenis Olahan'],
+            ['route' => 'admin.unit-measured.index', 'match' => 'admin.unit-measured.*', 'label' => 'Satuan Ukur'],
+        ]],
+        ['type' => 'group', 'label' => 'Alur & Mitra', 'icon' => 'route', 'items' => [
+            ['route' => 'admin.source-location.index', 'match' => 'admin.source-location.*', 'label' => 'Sumber Sampah'],
+            ['route' => 'admin.waste-out-method.index', 'match' => 'admin.waste-out-method.*', 'label' => 'Metode Keluar'],
+            ['route' => 'admin.collector-buyer.index', 'match' => 'admin.collector-buyer.*', 'label' => 'Pengepul / Pembeli'],
+            ['route' => 'admin.category-report.index', 'match' => 'admin.category-report.*', 'label' => 'Kategori Kendala'],
+        ]],
+
+        ['type' => 'heading', 'label' => 'Akun'],
+        ['type' => 'link', 'route' => 'admin.users.index', 'match' => 'admin.users.*', 'icon' => 'users', 'label' => 'Kelola PIC'],
+        ['type' => 'link', 'route' => 'admin.profile', 'match' => 'admin.profile*', 'icon' => 'user-round-cog', 'label' => 'Profil Saya'],
+    ];
+@endphp
+
+<aside class="fixed top-0 left-0 z-40 w-72 h-screen bg-gradient-to-b from-brand-500 to-brand-700 text-white shadow-2xl flex flex-col"
+       :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'" aria-label="Navigasi utama">
+
+    <div class="h-16 flex items-center justify-between px-5 border-b border-white/15 flex-shrink-0">
+        <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3">
             <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
-                <img src="{{ asset('images/Politeknik_Negeri_Batam.png') }}"
-                     alt="Logo Polibatam"
-                     class="h-8 w-8 object-contain">
+                <img src="{{ asset('images/Politeknik_Negeri_Batam.png') }}" alt="Logo Polibatam" class="h-8 w-8 object-contain">
             </div>
             <div>
-                <h2 class="text-sm font-bold tracking-wide leading-tight">WasteTracking</h2>
+                <p class="text-sm font-bold tracking-wide leading-tight">WasteTracking</p>
                 <p class="text-[10px] font-medium text-white/70 leading-tight uppercase tracking-widest">Admin Panel</p>
             </div>
-        </div>
+        </a>
+        <button @click="sidebarOpen = false" class="lg:hidden w-8 h-8 rounded-lg hover:bg-white/15 flex items-center justify-center" aria-label="Tutup menu">
+            <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
     </div>
 
-    <div class="h-[calc(100%-80px)] px-3 py-5 overflow-y-auto">
+    <nav class="flex-1 px-3 py-4 overflow-y-auto">
         <ul class="space-y-0.5">
-
-            <li>
-                <a href="{{ route('admin.dashboard') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.dashboard') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="layout-dashboard" class="w-4.5 h-4.5 flex-shrink-0"></i>
-                    <span>Dashboard</span>
-                </a>
-            </li>
-
-            <li class="pt-3 pb-1">
-                <p class="px-4 text-[9px] font-bold text-white/40 uppercase tracking-[0.15em]">Monitoring</p>
-            </li>
-
-            <li>
-                <a href="{{ route('admin.waste-entry.index') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.waste-entry.*') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="inbox" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Sampah Masuk</span>
-                </a>
-            </li>
-
-            <li>
-                <a href="{{ route('admin.waste-out.index') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.waste-out.*') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="send" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Sampah Keluar</span>
-                </a>
-            </li>
-
-            <li>
-                <a href="{{ route('admin.processed-waste-data.index') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.processed-waste-data.*') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="cpu" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Pengolahan</span>
-                </a>
-            </li>
-
-            <li>
-                <a href="{{ route('admin.report.index') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.report.*') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="bar-chart-2" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Laporan Data Sampah</span>
-                </a>
-            </li>
-
-            <li>
-                <a href="{{ route('admin.pic-report.index') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.pic-report.*') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="file-warning" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Laporan Kendala PIC</span>
-                </a>
-            </li>
-
-            <li class="pt-3 pb-1">
-                <p class="px-4 text-[9px] font-bold text-white/40 uppercase tracking-[0.15em]">Data Master</p>
-            </li>
-
-            <li>
-                <a href="{{ route('admin.waste-category.index') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.waste-category.*') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="layers" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Kategori Sampah</span>
-                </a>
-            </li>
-
-            <li>
-                <a href="{{ route('admin.waste-subcategory.index') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.waste-subcategory.*') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="tag" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Sub-Kategori Sampah</span>
-                </a>
-            </li>
-
-            <li>
-                <a href="{{ route('admin.category-report.index') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.category-report.*') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="folder-open" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Kategori Laporan</span>
-                </a>
-            </li>
-
-            <li>
-                <a href="{{ route('admin.waste-b3.index') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.waste-b3.*') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="flask-conical" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Limbah B3</span>
-                </a>
-            </li>
-
-            <li>
-                <a href="{{ route('admin.processed-waste.index') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.processed-waste.*') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="recycle" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Jenis Olahan</span>
-                </a>
-            </li>
-
-            <li>
-                <a href="{{ route('admin.unit-measured.index') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.unit-measured.*') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="ruler" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Satuan Ukur</span>
-                </a>
-            </li>
-
-            <li>
-                <a href="{{ route('admin.source-location.index') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.source-location.*') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="map-pin" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Sumber Sampah</span>
-                </a>
-            </li>
-
-            <li>
-                <a href="{{ route('admin.collector-buyer.index') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.collector-buyer.*') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="building-2" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Pengepul / Pembeli</span>
-                </a>
-            </li>
-
-            <li>
-                <a href="{{ route('admin.waste-out-method.index') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.waste-out-method.*') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="send" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Metode Keluar</span>
-                </a>
-            </li>
-
-            <li class="pt-3 pb-1">
-                <p class="px-4 text-[9px] font-bold text-white/40 uppercase tracking-[0.15em]">Akun</p>
-            </li>
-
-            <li>
-                <a href="{{ route('admin.users.index') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.users.*') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="users" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Kelola Pengguna</span>
-                </a>
-            </li>
-
-            <li>
-                <a href="{{ route('admin.profile') }}"
-                   class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium {{ request()->routeIs('admin.profile') ? 'sidebar-link-active' : '' }}">
-                    <i data-lucide="user-round" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Profil Saya</span>
-                </a>
-            </li>
-
+            @foreach($menu as $item)
+                @if($item['type'] === 'heading')
+                    <li class="pt-4 pb-1.5 px-4 text-[10px] font-bold text-white/45 uppercase tracking-[0.15em]">{{ $item['label'] }}</li>
+                @elseif($item['type'] === 'link')
+                    @php $active = request()->routeIs($item['match']); @endphp
+                    <li>
+                        <a href="{{ route($item['route']) }}" @if($active) aria-current="page" @endif
+                           class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all {{ $active ? 'bg-white text-brand-700 shadow-sm' : 'text-white/85 hover:bg-white/15 hover:text-white' }}">
+                            <i data-lucide="{{ $item['icon'] }}" class="w-[18px] h-[18px] flex-shrink-0"></i>
+                            <span class="flex-1">{{ $item['label'] }}</span>
+                            @if(!empty($item['badge']))
+                                <span class="min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center" title="Peringatan limbah B3">{{ $item['badge'] }}</span>
+                            @endif
+                        </a>
+                    </li>
+                @else
+                    @php $groupActive = collect($item['items'])->contains(fn ($i) => request()->routeIs($i['match'])); @endphp
+                    <li x-data="{ open: {{ $groupActive ? 'true' : 'false' }} }">
+                        <button type="button" @click="open = !open" :aria-expanded="open"
+                                class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all {{ $groupActive ? 'text-white bg-white/10' : 'text-white/85 hover:bg-white/15 hover:text-white' }}">
+                            <i data-lucide="{{ $item['icon'] }}" class="w-[18px] h-[18px] flex-shrink-0"></i>
+                            <span class="flex-1 text-left">{{ $item['label'] }}</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="open && 'rotate-180'"></i>
+                        </button>
+                        <ul x-show="open" x-transition.opacity x-cloak class="mt-0.5 ml-[26px] pl-4 border-l border-white/20 space-y-0.5">
+                            @foreach($item['items'] as $sub)
+                                @php $active = request()->routeIs($sub['match']); @endphp
+                                <li>
+                                    <a href="{{ route($sub['route']) }}" @if($active) aria-current="page" @endif
+                                       class="block px-3 py-2 rounded-lg text-[13px] transition-all {{ $active ? 'bg-white text-brand-700 font-semibold' : 'text-white/75 hover:bg-white/15 hover:text-white' }}">
+                                        {{ $sub['label'] }}
+                                    </a>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </li>
+                @endif
+            @endforeach
         </ul>
+    </nav>
 
-        <div class="mt-6 px-1">
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit"
-                    class="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-white/70 hover:bg-red-500/20 hover:text-red-200 transition-all text-sm font-medium">
-                    <i data-lucide="log-out" class="w-4 h-4 flex-shrink-0"></i>
-                    <span>Logout</span>
-                </button>
-            </form>
-        </div>
+    <div class="p-3 border-t border-white/15 flex-shrink-0">
+        <form method="POST" action="{{ route('logout') }}" data-confirm="Anda akan keluar dari panel admin." data-confirm-title="Keluar?" data-confirm-ok="Keluar" data-confirm-tone="neutral">
+            @csrf
+            <button type="submit" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/80 hover:bg-white/15 hover:text-white transition-all text-sm font-medium">
+                <i data-lucide="log-out" class="w-[18px] h-[18px]"></i>
+                <span>Keluar</span>
+            </button>
+        </form>
     </div>
 </aside>

@@ -24,7 +24,22 @@ class ReportController extends Controller
         $dateFrom = $request->date_from ? Carbon::parse($request->date_from)->startOfDay() : Carbon::now()->startOfMonth();
         $dateTo   = $request->date_to   ? Carbon::parse($request->date_to)->endOfDay()     : Carbon::now()->endOfDay();
 
+        // Jika rentang terbalik, tukar agar laporan tetap terisi
+        if ($dateFrom->gt($dateTo)) {
+            [$dateFrom, $dateTo] = [$dateTo->copy()->startOfDay(), $dateFrom->copy()->endOfDay()];
+        }
+
         return [$dateFrom, $dateTo];
+    }
+
+    /**
+     * Ekspresi "YYYY-MM" yang bekerja di MySQL (produksi) maupun SQLite (test).
+     */
+    private function monthExpression(): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "strftime('%Y-%m', created_at)"
+            : "DATE_FORMAT(created_at, '%Y-%m')";
     }
 
     /**
@@ -43,7 +58,7 @@ class ReportController extends Controller
         $totalWasteIn = $wasteEntries->sum('measured_qty');
 
         // === WASTE OUT (SAMPAH KELUAR) ===
-        $wasteOutRecords = WasteOutData::with(['wasteOutMethod', 'wasteDestination', 'user.picDetail', 'dataWasteOut.wasteSubCategory.unitMeasured', 'dataWasteOut.processedWaste'])
+        $wasteOutRecords = WasteOutData::with(['wasteOutMethod', 'wasteDestination', 'user.picDetail', 'dataWasteOut.wasteSubCategory.unitMeasured', 'dataWasteOut.processedWaste.unitMeasured'])
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -62,7 +77,7 @@ class ReportController extends Controller
 
         // === CHART: Monthly Waste In (last 12 months from date range) ===
         $monthlyWasteIn = WasteEntry::select(
-                DB::raw("DATE_FORMAT(created_at, '%Y-%m') as month"),
+                DB::raw($this->monthExpression() . ' as month'),
                 DB::raw('SUM(measured_qty) as total'),
                 DB::raw('COUNT(*) as count')
             )
@@ -142,7 +157,7 @@ class ReportController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $wasteOutRecords = WasteOutData::with(['wasteOutMethod', 'wasteDestination', 'user.picDetail', 'dataWasteOut.wasteSubCategory.unitMeasured'])
+        $wasteOutRecords = WasteOutData::with(['wasteOutMethod', 'wasteDestination', 'user.picDetail', 'dataWasteOut.wasteSubCategory.unitMeasured', 'dataWasteOut.processedWaste.unitMeasured'])
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -177,7 +192,9 @@ class ReportController extends Controller
             fputcsv($handle, ['Total Sampah Masuk (Kg)', $wasteEntries->sum('measured_qty')]);
             fputcsv($handle, ['Total Transaksi Masuk', $wasteEntries->count()]);
             fputcsv($handle, ['Total Transaksi Keluar', $wasteOutRecords->count()]);
-            fputcsv($handle, ['Total Sampah Diolah', $processedWasteRecords->count()]);
+            fputcsv($handle, ['Total Sampah Keluar (Kg)', $wasteOutRecords->flatMap->dataWasteOut->sum('measured_qty')]);
+            fputcsv($handle, ['Total Transaksi Pengolahan', $processedWasteRecords->count()]);
+            fputcsv($handle, ['Total Hasil Olahan (Kg)', $processedWasteRecords->sum('measured_qty')]);
             fputcsv($handle, []);
 
             // ── SHEET 1: SAMPAH MASUK ──
@@ -192,7 +209,7 @@ class ReportController extends Controller
                     $entry->subCategory?->category?->name ?? '-',
                     $entry->subCategory?->name ?? '-',
                     floatval($entry->measured_qty),
-                    $entry->subCategory?->unitMeasured?->symbol ?? 'Kg',
+                    $entry->subCategory?->unitMeasured?->symbol ?? 'kg',
                     $entry->sourceLocation?->name ?? '-',
                     $entry->notes ?? '-',
                 ]);
@@ -216,7 +233,7 @@ class ReportController extends Controller
                         $out->wasteDestination?->name ?? '-',
                         $detail->wasteSubCategory?->name ?? ($detail->processedWaste?->name ?? '-'),
                         floatval($detail->measured_qty),
-                        $detail->wasteSubCategory?->unitMeasured?->symbol ?? 'Kg',
+                        $detail->wasteSubCategory?->unitMeasured?->symbol ?? $detail->processedWaste?->unitMeasured?->symbol ?? 'kg',
                         $out->notes ?? '-',
                     ]);
                 }
@@ -234,7 +251,7 @@ class ReportController extends Controller
                     $proc->user?->picDetail?->full_name ?? $proc->user?->email ?? '-',
                     $proc->processedWaste?->name ?? '-',
                     floatval($proc->measured_qty),
-                    $proc->processedWaste?->unitMeasured?->symbol ?? 'Kg',
+                    $proc->processedWaste?->unitMeasured?->symbol ?? 'kg',
                     $proc->notes ?? '-',
                 ]);
             }
@@ -257,7 +274,7 @@ class ReportController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $wasteOutRecords = WasteOutData::with(['wasteOutMethod', 'wasteDestination', 'user.picDetail', 'dataWasteOut.wasteSubCategory.unitMeasured', 'dataWasteOut.processedWaste'])
+        $wasteOutRecords = WasteOutData::with(['wasteOutMethod', 'wasteDestination', 'user.picDetail', 'dataWasteOut.wasteSubCategory.unitMeasured', 'dataWasteOut.processedWaste.unitMeasured'])
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->orderBy('created_at', 'desc')
             ->get();

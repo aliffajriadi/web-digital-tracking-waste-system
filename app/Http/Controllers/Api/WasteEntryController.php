@@ -2,66 +2,78 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\ValidatesTransactions;
 use App\Http\Controllers\Controller;
 use App\Models\WasteEntry;
-use App\Models\AttachmentWasteEntry; 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class WasteEntryController extends Controller
 {
+    use ValidatesTransactions;
+
     public function store(Request $request)
     {
+        $this->normalizeDecimal($request, 'measured_qty');
+
         // 1. Validasi data yang masuk dari Flutter
         $request->validate([
-            'id_waste_sub_category' => 'required',
-            'id_source_location_waste' => 'required',
-            'measured_qty' => 'required|numeric',
-            'created_at' => 'required',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048', // Maksimal 2MB
-        ]);
+            'id_waste_sub_category' => [
+                'required',
+                Rule::exists('waste_sub_category', 'id')->where('is_active', true),
+            ],
+            'id_source_location_waste' => 'required|exists:source_location_waste,id',
+            'measured_qty' => 'required|numeric|gt:0|max:100000',
+            'notes' => 'nullable|string|max:1000',
+            'created_at' => $this->transactionTimeRules(),
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
+        ], array_merge($this->transactionTimeMessages(), [
+            'id_waste_sub_category.exists' => 'Jenis sampah tidak ditemukan atau sudah dinonaktifkan.',
+            'measured_qty.gt' => 'Berat harus lebih dari 0.',
+        ]));
 
-        // Gunakan Database Transaction agar jika salah satu simpan gagal, data tidak berantakan
-        DB::beginTransaction();
+        $photoPath = null;
 
         try {
-            // 2. Simpan ke tabel waste_entry
-            $wasteEntry = new WasteEntry();
-            // id_user diambil otomatis dari PIC yang sedang login via token sanctum
-            $wasteEntry->id_user = $request->user()->id; 
-            $wasteEntry->id_waste_sub_category = $request->id_waste_sub_category;
-            $wasteEntry->id_source_location_waste = $request->id_source_location_waste;
-            $wasteEntry->measured_qty = $request->measured_qty;
-            $wasteEntry->notes = $request->notes;
-            $wasteEntry->created_at = $request->created_at;
-            $wasteEntry->save();
-
-            // 3. Proses upload file foto bukti sampah
-            if ($request->hasFile('photo')) {
-                $file = $request->file('photo');
-                // Menyimpan ke folder storage/app/public/attachments
-                $path = $file->store('attachments', 'public'); 
-
-                // 4. Simpan log gambar ke tabel attachment_waste_entry
-                DB::table('attachment_waste_entry')->insert([
-                    'id_waste_entry' => $wasteEntry->id,
-                    'path' => $path, 
+            $wasteEntry = DB::transaction(function () use ($request, &$photoPath) {
+                // id_user diambil dari PIC yang sedang login via token sanctum
+                $wasteEntry = WasteEntry::create([
+                    'id_user' => $request->user()->id,
+                    'id_waste_sub_category' => $request->id_waste_sub_category,
+                    'id_source_location_waste' => $request->id_source_location_waste,
+                    'measured_qty' => $request->measured_qty,
+                    'notes' => $request->notes,
+                    'created_at' => $this->transactionTime($request),
                 ]);
+
+                if ($request->hasFile('photo')) {
+                    $photoPath = $request->file('photo')->store('attachments', 'public');
+                    DB::table('attachment_waste_entry')->insert([
+                        'id_waste_entry' => $wasteEntry->id,
+                        'path' => $photoPath,
+                    ]);
+                }
+
+                return $wasteEntry;
+            });
+        } catch (\Throwable $e) {
+            if ($photoPath) {
+                Storage::disk('public')->delete($photoPath);
             }
+            report($e);
 
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Data transaksi sampah berhasil disimpan!'
-            ], 201);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal menyimpan data: ' . $e->getMessage()
+                'message' => 'Gagal menyimpan data. Silakan coba lagi.',
             ], 500);
         }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data sampah masuk berhasil disimpan!',
+            'data' => ['id' => $wasteEntry->id],
+        ], 201);
     }
 }

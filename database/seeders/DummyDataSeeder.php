@@ -143,7 +143,7 @@ class DummyDataSeeder extends Seeder
 
         // 6. Waste Out Methods
         $methods = [
-            ['name' => 'Penjualan', 'description' => 'Dijual ke pengepul'],
+            ['name' => 'Penjualan', 'description' => 'Dijual ke pengepul', 'is_selling' => true],
             ['name' => 'Landfill', 'description' => 'Dibuang ke TPA'],
             ['name' => 'Insinerasi', 'description' => 'Dibakar'],
             ['name' => 'Komposting', 'description' => 'Diolah jadi kompos'],

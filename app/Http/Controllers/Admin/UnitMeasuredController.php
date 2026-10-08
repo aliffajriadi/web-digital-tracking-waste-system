@@ -42,6 +42,11 @@ class UnitMeasuredController extends Controller
 
     public function destroy(UnitMeasured $unitMeasured)
     {
+        $used = \Illuminate\Support\Facades\DB::table('waste_sub_category')->where('id_unit_measured', $unitMeasured->id)->exists()
+            || \Illuminate\Support\Facades\DB::table('processed_waste')->where('id_unit_measured', $unitMeasured->id)->exists();
+        if ($used) {
+            return back()->with('error', 'Satuan tidak dapat dihapus karena masih dipakai oleh sub-kategori atau jenis olahan.');
+        }
         $unitMeasured->delete();
         return back()->with('success', 'Satuan ukur berhasil dihapus.');
     }

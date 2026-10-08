@@ -2,6 +2,7 @@
 
 @section('title', 'Laporan Lengkap | WasteTracking')
 @section('page-title', 'Laporan Pengelolaan Sampah')
+@section('breadcrumb', 'Laporan')
 
 @section('content')
 <div class="max-w-7xl mx-auto space-y-6">

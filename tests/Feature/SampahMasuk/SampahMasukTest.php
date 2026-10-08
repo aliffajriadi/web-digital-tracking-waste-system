@@ -95,7 +95,6 @@ class SampahMasukTest extends TestCase
                      'id_waste_sub_category',
                      'id_source_location_waste',
                      'measured_qty',
-                     'created_at',
                  ]);
 
         $this->assertDatabaseCount('waste_entry', 0);

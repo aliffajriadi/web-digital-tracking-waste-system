@@ -3,27 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\WasteCategory; 
-use Illuminate\Http\Request;
+use App\Models\WasteCategory;
 
 class CategoryController extends Controller
 {
     public function index()
     {
-        try {
-            // Mengambil semua data kategori dari tabel waste_category
-            $categories = WasteCategory::all();
+        $categories = WasteCategory::withCount(['subCategories' => fn ($q) => $q->where('is_active', true)])
+            ->orderBy('name')
+            ->get();
 
-            return response()->json([
-                'success' => true,
-                'data' => $categories
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal mengambil data kategori: ' . $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'data' => $categories,
+        ], 200);
     }
 }

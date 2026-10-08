@@ -10,10 +10,12 @@ class WasteB3Controller extends Controller
 {
     public function index(Request $request)
     {
-        $query = WasteB3Detail::query();
+        $query = WasteB3Detail::withCount('wasteSubCategories')->orderBy('waste_code');
         if ($request->filled('search')) {
-            $query->where('waste_code', 'like', "%{$request->search}%")
+            $query->where(function ($q) use ($request) {
+                $q->where('waste_code', 'like', "%{$request->search}%")
                   ->orWhere('description', 'like', "%{$request->search}%");
+            });
         }
         $b3Details = $query->paginate(10)->withQueryString();
         return view('pages.waste-b3.index', compact('b3Details'));
@@ -45,6 +47,9 @@ class WasteB3Controller extends Controller
 
     public function destroy(WasteB3Detail $wasteB3)
     {
+        if ($wasteB3->wasteSubCategories()->exists()) {
+            return back()->with('error', 'Data B3 tidak dapat dihapus karena masih dipakai oleh sub-kategori sampah.');
+        }
         $wasteB3->delete();
         return back()->with('success', 'Data limbah B3 berhasil dihapus.');
     }

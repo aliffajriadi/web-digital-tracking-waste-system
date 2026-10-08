@@ -30,6 +30,8 @@ class PengolahanTest extends TestCase
             ]
         ]);
 
+        $this->seedStock($pic, $subCategory, 50);
+
         // Act
         $response = $this->actingAs($pic, 'sanctum')->postJson('/api/processed-waste-data', [
             'id_processed_waste' => $processedWaste->id,
@@ -67,6 +69,8 @@ class PengolahanTest extends TestCase
         $setup          = $this->setupMasterData();
         $processedWaste = $setup['processedWaste'];
         $subCategory    = $setup['subCategory'];
+
+        $this->seedStock($pic, $subCategory, 50);
 
         // Act
         $response = $this->actingAs($admin)->post(route('admin.processed-waste-data.store'), [
@@ -108,7 +112,6 @@ class PengolahanTest extends TestCase
                  ->assertJsonValidationErrors([
                      'id_processed_waste',
                      'measured_qty',
-                     'created_at',
                      'raw_materials',
                  ]);
 
@@ -212,6 +215,8 @@ class PengolahanTest extends TestCase
                 'measured_qty'          => 12.5,
             ]
         ]);
+
+        $this->seedStock($pic, $setup['subCategory'], 50);
 
         // Act
         $this->actingAs($pic, 'sanctum')->postJson('/api/processed-waste-data', [
